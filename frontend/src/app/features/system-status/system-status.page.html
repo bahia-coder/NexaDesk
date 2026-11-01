@@ -1,0 +1,72 @@
+<main class="page">
+  <header class="top">
+    <div class="brand">
+      <span class="brand__mark"><lucide-icon [img]="icons.Hexagon" [size]="20" /></span>
+      <span class="brand__name">NexaDesk</span>
+    </div>
+    <button
+      type="button"
+      class="icon-btn"
+      (click)="theme.toggle()"
+      [attr.aria-label]="theme.isDark() ? 'Passer en thème clair' : 'Passer en thème sombre'"
+    >
+      <lucide-icon [img]="theme.isDark() ? icons.Sun : icons.Moon" [size]="18" />
+    </button>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">Phase 2 · Initialisation</p>
+    <h1>État du système</h1>
+    <p class="muted">Vérifie que le frontend Angular démarre et qu'il joint l'API Spring Boot via le proxy.</p>
+  </section>
+
+  <section class="grid" aria-live="polite">
+    <article class="card">
+      <div class="card__icon"><lucide-icon [img]="icons.Monitor" [size]="20" /></div>
+      <div class="card__body">
+        <h2>Frontend Angular</h2>
+        <p class="muted mono">v{{ angularVersion }}</p>
+      </div>
+      <span class="badge badge--success">
+        <lucide-icon [img]="icons.CircleCheck" [size]="14" /> Opérationnel
+      </span>
+    </article>
+
+    <article class="card">
+      <div class="card__icon"><lucide-icon [img]="icons.Server" [size]="20" /></div>
+      <div class="card__body">
+        <h2>API Spring Boot</h2>
+        <p class="muted mono">GET /actuator/health</p>
+      </div>
+      @switch (backendStatus()) {
+        @case ('UP') {
+          <span class="badge badge--success"><lucide-icon [img]="icons.CircleCheck" [size]="14" /> Opérationnelle</span>
+        }
+        @case ('DOWN') {
+          <span class="badge badge--warning"><lucide-icon [img]="icons.CircleAlert" [size]="14" /> Dégradée</span>
+        }
+        @case ('UNREACHABLE') {
+          <span class="badge badge--danger"><lucide-icon [img]="icons.CircleX" [size]="14" /> Injoignable</span>
+        }
+        @default {
+          <span class="badge badge--neutral">Vérification…</span>
+        }
+      }
+    </article>
+  </section>
+
+  <footer class="actions">
+    <button type="button" class="btn btn--primary" (click)="check()" [disabled]="checking()">
+      <lucide-icon [img]="icons.RefreshCw" [size]="16" [class.spin]="checking()" />
+      {{ checking() ? 'Vérification…' : 'Revérifier' }}
+    </button>
+    @if (showApiDocs) {
+      <a class="btn btn--secondary" href="/swagger-ui.html" target="_blank" rel="noopener">
+        <lucide-icon [img]="icons.BookOpen" [size]="16" /> Documentation API
+      </a>
+    }
+    @if (lastCheck(); as at) {
+      <span class="muted small">Dernière vérification : {{ at.toLocaleTimeString('fr-FR') }}</span>
+    }
+  </footer>
+</main>

@@ -1,0 +1,123 @@
+// NexaDesk design tokens (see docs/phase-1/05-design-system-maquettes.md).
+// Components only use these variables, so they work unchanged in light and dark themes.
+
+@mixin light-theme {
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-primary-subtle: #eef2ff;
+  --color-on-primary: #ffffff;
+
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-hover: #f1f5f9;
+  --color-sidebar: #0f172a;
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #f8fafc;
+
+  --color-success: #16a34a;
+  --color-success-subtle: #dcfce7;
+  --color-success-text: #15803d;
+  --color-warning: #f59e0b;
+  --color-warning-subtle: #fef3c7;
+  --color-warning-text: #b45309;
+  --color-danger: #dc2626;
+  --color-danger-subtle: #fee2e2;
+  --color-danger-text: #b91c1c;
+  --color-info: #0284c7;
+  --color-info-subtle: #e0f2fe;
+  --color-info-text: #0369a1;
+
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 12px rgb(15 23 42 / 0.08);
+  --shadow-lg: 0 16px 40px rgb(15 23 42 / 0.14);
+}
+
+@mixin dark-theme {
+  --color-primary: #818cf8;
+  --color-primary-hover: #a5b4fc;
+  --color-primary-subtle: #1e1b4b;
+  --color-on-primary: #0b1120;
+
+  --color-bg: #0b1120;
+  --color-surface: #111827;
+  --color-surface-raised: #1f2937;
+  --color-surface-hover: #1f2937;
+  --color-sidebar: #020617;
+  --color-border: #1f2937;
+  --color-border-strong: #334155;
+
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-text-inverse: #0f172a;
+
+  --color-success: #22c55e;
+  --color-success-subtle: #052e16;
+  --color-success-text: #4ade80;
+  --color-warning: #fbbf24;
+  --color-warning-subtle: #422006;
+  --color-warning-text: #fcd34d;
+  --color-danger: #f87171;
+  --color-danger-subtle: #450a0a;
+  --color-danger-text: #fca5a5;
+  --color-info: #38bdf8;
+  --color-info-subtle: #082f49;
+  --color-info-text: #7dd3fc;
+
+  --shadow-sm: 0 0 0 1px rgb(148 163 184 / 0.08);
+  --shadow-md: 0 0 0 1px rgb(148 163 184 / 0.12), 0 8px 24px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 0 0 1px rgb(148 163 184 / 0.14), 0 20px 48px rgb(0 0 0 / 0.55);
+}
+
+:root {
+  @include light-theme;
+
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  --text-display: 600 1.875rem/2.25rem var(--font-sans);
+  --text-h1: 600 1.5rem/2rem var(--font-sans);
+  --text-h2: 600 1.125rem/1.75rem var(--font-sans);
+  --text-body: 400 0.875rem/1.25rem var(--font-sans);
+  --text-small: 400 0.8125rem/1.125rem var(--font-sans);
+  --text-xs: 500 0.75rem/1rem var(--font-sans);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --sidebar-width: 248px;
+  --sidebar-width-collapsed: 64px;
+  --header-height: 64px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    @include dark-theme;
+  }
+}
+
+:root[data-theme='dark'] {
+  @include dark-theme;
+}

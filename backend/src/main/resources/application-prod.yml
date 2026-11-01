@@ -1,0 +1,11 @@
+# Production profile: every connection setting must come from environment variables (no defaults).
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.nexadesk: INFO

@@ -1,0 +1,16 @@
+# Local development profile. The defaults below match docker-compose.dev.yml and are NOT secrets:
+# they only grant access to a throwaway local database container.
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/nexadesk}
+    username: ${DB_USERNAME:nexadesk}
+    password: ${DB_PASSWORD:nexadesk}
+
+# 8081 in development (8080 is often taken by other local tools); the Docker image keeps 8080.
+server:
+  port: ${SERVER_PORT:8081}
+
+logging:
+  level:
+    com.nexadesk: DEBUG
+    org.hibernate.SQL: INFO
