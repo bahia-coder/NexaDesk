@@ -5,8 +5,10 @@ import com.nexadesk.ticket.dto.TicketDtos.TicketFilter;
 import com.nexadesk.user.RoleCode;
 import com.nexadesk.user.User;
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,7 +28,11 @@ final class TicketSpecifications {
     private TicketSpecifications() {
     }
 
-    static Specification<Ticket> matching(TicketFilter filter, User viewer, ZoneId zone) {
+    /** Statuses in which the resolution clock runs. */
+    private static final List<TicketStatus> RUNNING = List.of(TicketStatus.NEW, TicketStatus.ASSIGNED,
+            TicketStatus.IN_PROGRESS);
+
+    static Specification<Ticket> matching(TicketFilter filter, User viewer, ZoneId zone, Instant now) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(visibleTo(viewer, root, cb));
@@ -63,6 +69,19 @@ final class TicketSpecifications {
                     case UNASSIGNED -> predicates.add(cb.isNull(root.get("assignee")));
                     case ALL -> { }
                 }
+            }
+            if (filter.sla() != null) {
+                Path<Instant> due = root.get("resolutionDueAt");
+                Predicate running = root.get("status").in(RUNNING);
+                predicates.add(switch (filter.sla()) {
+                    case BREACHED -> cb.or(
+                            cb.and(running, cb.lessThan(due, now)),
+                            cb.and(cb.equal(root.get("status"), TicketStatus.PENDING),
+                                    cb.greaterThan(root.<Instant>get("slaPausedAt"), due)));
+                    // Flagged by the SLA monitor (threshold of consumed business time), not yet overdue.
+                    case AT_RISK -> cb.and(running, cb.greaterThanOrEqualTo(due, now),
+                            cb.isNotNull(root.get("slaWarningSentAt")));
+                });
             }
             if (filter.from() != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"),

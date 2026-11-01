@@ -5,6 +5,7 @@ import com.nexadesk.category.PriorityCode;
 import com.nexadesk.category.dto.CategoryDtos.CategoryRefDto;
 import com.nexadesk.ticket.PendingReason;
 import com.nexadesk.ticket.TicketAction;
+import com.nexadesk.ticket.TicketSla;
 import com.nexadesk.ticket.TicketStatus;
 import com.nexadesk.ticket.TicketType;
 import jakarta.validation.constraints.Max;
@@ -39,7 +40,7 @@ public final class TicketDtos {
 
     public record TicketSummaryDto(Long id, String reference, TicketType type, String title, TicketStatus status,
                                    PriorityRefDto priority, CategoryRefDto category, UserRefDto requester,
-                                   UserRefDto assignee, Instant createdAt, Instant updatedAt) {
+                                   UserRefDto assignee, TicketSla.View sla, Instant createdAt, Instant updatedAt) {
     }
 
     public record FeedbackDto(int rating, String comment, Instant createdAt) {
@@ -50,8 +51,8 @@ public final class TicketDtos {
                                   CategoryRefDto category, SubCategoryRefDto subcategory, UserRefDto requester,
                                   UserRefDto assignee, PendingReason pendingReason, String rejectionReason,
                                   String resolution, Instant resolvedAt, Instant closedAt, int reopenCount,
-                                  int version, Instant createdAt, Instant updatedAt, FeedbackDto feedback,
-                                  Set<TicketAction> availableActions) {
+                                  TicketSla.View sla, int version, Instant createdAt, Instant updatedAt,
+                                  FeedbackDto feedback, Set<TicketAction> availableActions) {
     }
 
     public record CommentDto(Long id, UserRefDto author, String body, boolean internal, Instant createdAt) {
@@ -69,6 +70,9 @@ public final class TicketDtos {
 
     public enum TicketScope { ALL, MINE, ASSIGNED_TO_ME, UNASSIGNED }
 
+    /** Tickets needing attention: past their deadline, or flagged by the SLA monitor as close to it. */
+    public enum SlaFilter { AT_RISK, BREACHED }
+
     /** List filters, all optional and combinable. Multi-valued: {@code status=NEW&status=PENDING}. */
     public record TicketFilter(
             String search,
@@ -79,6 +83,7 @@ public final class TicketDtos {
             Long assigneeId,
             Long requesterId,
             TicketScope scope,
+            SlaFilter sla,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
     }

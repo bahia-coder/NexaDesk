@@ -80,6 +80,15 @@ Valeurs de test uniquement, sans aucune donnée réelle derrière.
 | Technicien | `tech.reseau@nexadesk.test` (et 4 autres `tech.*`) | `Demo@Tech2026` |
 | Employé | `employe@nexadesk.test` (et 14 autres) | `Demo@User2026` |
 
+Le profil `demo` crée aussi 8 catégories, les jours fériés français 2026-2027 et **48 tickets** sur six mois (commentaires, interventions, historiques, évaluations). Les dates sont relatives au démarrage : la file contient toujours des tickets en retard, à risque et en attente, quel que soit le jour de la démonstration.
+
+## SLA
+
+- Règles par priorité (modifiables par l'admin) : Critique 15 min / 2 h en **24/7** ; Haute 1 h / 8 h, Moyenne 4 h / 24 h, Basse 8 h / 48 h en **heures ouvrées** (08:00-18:00, du lundi au vendredi, hors jours fériés).
+- Le chrono de résolution est suspendu quand le ticket est en attente, résolu ou fermé ; à la reprise, l'échéance est décalée du temps ouvré de pause.
+- États exposés sur chaque ticket : `ON_TRACK`, `AT_RISK` (seuil de 75 % configurable), `BREACHED`, `PAUSED`, `MET`, `MISSED`.
+- Une tâche planifiée (toutes les minutes) signale une fois chaque passage à risque ou en retard, et clôt les tickets résolus restés sans réponse 72 h ouvrées.
+
 ## Authentification
 
 - `POST /api/auth/login` renvoie un **access token JWT** (15 min) à envoyer en `Authorization: Bearer`, et pose un **refresh token** opaque dans un cookie `httpOnly`, `Secure`, `SameSite=Strict`, limité à `/api/auth` (7 jours).

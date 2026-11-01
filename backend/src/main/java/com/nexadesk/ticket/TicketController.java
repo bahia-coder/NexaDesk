@@ -44,15 +44,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class TicketController {
 
     private static final Set<String> SORTABLE = Set.of(
-            "createdAt", "updatedAt", "reference", "title", "status", "priority.rank");
+            "createdAt", "updatedAt", "reference", "title", "status", "priority.rank", "resolutionDueAt");
 
     private final TicketService ticketService;
     private final TicketWorkflowService workflowService;
 
     @GetMapping
     @Operation(summary = "Lister les tickets visibles",
-            description = "Filtres combinables ; tri possible sur createdAt, updatedAt, reference, title, status, "
-                    + "priority.rank. Un employé ne voit que ses tickets, un technicien ceux de ses spécialités.")
+            description = "Filtres combinables (dont sla=AT_RISK|BREACHED) ; tri possible sur createdAt, updatedAt, "
+                    + "reference, title, status, priority.rank, resolutionDueAt. Un employé ne voit que ses tickets, "
+                    + "un technicien ceux de ses spécialités.")
     public PageResponse<TicketSummaryDto> list(@ParameterObject TicketFilter filter,
                                                @ParameterObject @PageableDefault(sort = "createdAt",
                                                        direction = Sort.Direction.DESC) Pageable pageable) {

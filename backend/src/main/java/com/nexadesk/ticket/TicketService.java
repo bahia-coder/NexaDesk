@@ -26,6 +26,7 @@ import com.nexadesk.user.RoleCode;
 import com.nexadesk.user.User;
 import com.nexadesk.user.UserRepository;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -57,6 +58,7 @@ public class TicketService {
     private final TicketAccess access;
     private final TicketPolicy policy;
     private final TicketMapper mapper;
+    private final TicketSla ticketSla;
     private final Clock clock;
     private final ZoneId zone;
 
@@ -64,8 +66,8 @@ public class TicketService {
                          TicketSubCategoryRepository subCategoryRepository, PriorityRepository priorityRepository,
                          UserRepository userRepository, TicketFeedbackRepository feedbackRepository,
                          TicketReferenceGenerator referenceGenerator, TicketHistoryRecorder history,
-                         TicketAccess access, TicketPolicy policy, TicketMapper mapper, Clock clock,
-                         @Value("${nexadesk.time-zone}") ZoneId zone) {
+                         TicketAccess access, TicketPolicy policy, TicketMapper mapper, TicketSla ticketSla,
+                         Clock clock, @Value("${nexadesk.time-zone}") ZoneId zone) {
         this.ticketRepository = ticketRepository;
         this.categoryRepository = categoryRepository;
         this.subCategoryRepository = subCategoryRepository;
@@ -77,6 +79,7 @@ public class TicketService {
         this.access = access;
         this.policy = policy;
         this.mapper = mapper;
+        this.ticketSla = ticketSla;
         this.clock = clock;
         this.zone = zone;
     }
@@ -88,8 +91,10 @@ public class TicketService {
         TicketCategory category = activeCategory(request.categoryId());
         TicketSubCategory subcategory = activeSubcategory(request.subcategoryId(), category);
         PriorityCode priorityCode = PriorityMatrix.priorityFor(request.impact(), request.urgency());
+        Instant now = clock.instant();
 
-        Ticket ticket = ticketRepository.save(Ticket.builder()
+        Ticket ticket = Ticket.builder()
+                .createdAt(now)
                 .reference(referenceGenerator.next(request.type()))
                 .type(request.type())
                 .title(request.title().trim())
@@ -100,7 +105,9 @@ public class TicketService {
                 .category(category)
                 .subcategory(subcategory)
                 .requester(requester)
-                .build());
+                .build();
+        ticketSla.onCreated(ticket, now);
+        ticketRepository.save(ticket);
 
         String onBehalf = requester == actor ? null : "Créé pour " + requester.getFullName();
         history.change(ticket, actor, HistoryAction.CREATED, "reference", null, ticket.getReference(), onBehalf);
@@ -110,7 +117,8 @@ public class TicketService {
     @Transactional(readOnly = true)
     public PageResponse<TicketSummaryDto> list(TicketFilter filter, Pageable pageable) {
         User actor = access.actor();
-        return PageResponse.from(ticketRepository.findAll(TicketSpecifications.matching(filter, actor, zone), pageable)
+        return PageResponse.from(ticketRepository.findAll(
+                        TicketSpecifications.matching(filter, actor, zone, clock.instant()), pageable)
                 .map(mapper::toSummary));
     }
 
@@ -122,14 +130,14 @@ public class TicketService {
                 ? List.copyOf(TicketStatus.BOARD)
                 : filter.status().stream().filter(TicketStatus.BOARD::contains).toList();
         TicketFilter boardFilter = new TicketFilter(filter.search(), statuses, filter.priority(), filter.type(),
-                filter.categoryId(), filter.assigneeId(), filter.requesterId(), filter.scope(), filter.from(),
-                filter.to());
+                filter.categoryId(), filter.assigneeId(), filter.requesterId(), filter.scope(), filter.sla(),
+                filter.from(), filter.to());
         Pageable page = PageRequest.of(0, BOARD_LIMIT,
                 Sort.by(Sort.Order.desc("priority.rank"), Sort.Order.asc("createdAt")));
 
         Map<TicketStatus, List<TicketSummaryDto>> columns = new EnumMap<>(TicketStatus.class);
         statuses.stream().sorted().forEach(status -> columns.put(status, new ArrayList<>()));
-        ticketRepository.findAll(TicketSpecifications.matching(boardFilter, actor, zone), page)
+        ticketRepository.findAll(TicketSpecifications.matching(boardFilter, actor, zone, clock.instant()), page)
                 .forEach(ticket -> columns.get(ticket.getStatus()).add(mapper.toSummary(ticket)));
         return columns;
     }
@@ -185,9 +193,13 @@ public class TicketService {
                 name(subcategory), reason);
         history.change(ticket, actor, HistoryAction.PRIORITY_CHANGED, "priority", ticket.getPriority().getCode(),
                 priority.getCode(), reason);
+        boolean priorityChanged = ticket.getPriority().getCode() != priority.getCode();
         ticket.setCategory(category);
         ticket.setSubcategory(subcategory);
         ticket.setPriority(priority);
+        if (priorityChanged) {
+            ticketSla.onPriorityChanged(ticket);
+        }
         return detailAfterChange(ticket, actor);
     }
 

@@ -34,6 +34,7 @@ public class TicketConversationService {
     private final TicketFeedbackRepository feedbackRepository;
     private final TicketHistoryRecorder history;
     private final TicketMapper mapper;
+    private final TicketSla ticketSla;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -59,6 +60,9 @@ public class TicketConversationService {
             history.recordInternal(ticket, actor, HistoryAction.COMMENT_ADDED, "Note interne");
         } else {
             history.record(ticket, actor, HistoryAction.COMMENT_ADDED, null);
+            if (TicketAccess.isStaff(actor) && !ticket.isRequestedBy(actor.getId())) {
+                ticketSla.onStaffReply(ticket);
+            }
             resumeIfRequesterAnswered(ticket, actor);
         }
         return mapper.toDto(comment);
@@ -96,6 +100,7 @@ public class TicketConversationService {
                 && ticket.isRequestedBy(author.getId())) {
             ticket.setPendingReason(null);
             ticket.setStatus(TicketStatus.IN_PROGRESS);
+            ticketSla.onStatusChanged(ticket, TicketStatus.PENDING, TicketStatus.IN_PROGRESS);
             history.change(ticket, null, HistoryAction.STATUS_CHANGED, "status", TicketStatus.PENDING,
                     TicketStatus.IN_PROGRESS, "Reprise automatique : réponse du demandeur");
         }

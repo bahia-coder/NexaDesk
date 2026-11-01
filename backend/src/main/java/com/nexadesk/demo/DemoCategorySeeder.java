@@ -66,7 +66,8 @@ public class DemoCategorySeeder implements ApplicationRunner {
                     List.of("Hameçonnage / e-mail suspect", "Virus / logiciel malveillant",
                             "Perte ou vol de matériel")));
 
-    private static final Map<String, List<String>> SPECIALTIES = Map.of(
+    /** Technician e-mail → specialty category names (also used by {@link DemoTicketSeeder} to pick assignees). */
+    static final Map<String, List<String>> SPECIALTIES = Map.of(
             DemoAccounts.TECHNICIAN_EMAIL, List.of(NETWORK, SECURITY),
             "tech.materiel@nexadesk.test", List.of(HARDWARE, PRINTING),
             "tech.logiciel@nexadesk.test", List.of(BUSINESS_APPS, WORKSTATION),

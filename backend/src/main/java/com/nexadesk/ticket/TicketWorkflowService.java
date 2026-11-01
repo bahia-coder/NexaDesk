@@ -31,6 +31,7 @@ public class TicketWorkflowService {
     private final UserRepository userRepository;
     private final TicketService ticketService;
     private final SolutionSource solutionSource;
+    private final TicketSla ticketSla;
     private final Clock clock;
 
     /** A technician takes a new, unassigned ticket of one of their specialties. */
@@ -162,6 +163,7 @@ public class TicketWorkflowService {
         ticket.setResolvedAt(null);
         ticket.setClosedAt(null);
         ticket.setReopenCount(ticket.getReopenCount() + 1);
+        ticketSla.onStatusChanged(ticket, previous, ticket.getStatus());
         history.change(ticket, actor, HistoryAction.REOPENED, "status", previous, ticket.getStatus(), reason.trim());
         return ticketService.detailAfterChange(ticket, actor);
     }
@@ -174,6 +176,7 @@ public class TicketWorkflowService {
     private void moveTo(Ticket ticket, User actor, TicketStatus target, String comment) {
         TicketStatus previous = ticket.getStatus();
         ticket.setStatus(target);
+        ticketSla.onStatusChanged(ticket, previous, target);
         history.change(ticket, actor, HistoryAction.STATUS_CHANGED, "status", previous, target, comment);
     }
 

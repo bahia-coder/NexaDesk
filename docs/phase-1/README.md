@@ -38,7 +38,11 @@ Décisions prises pendant le développement, qui affinent la conception ci-dessu
 | Interventions | Employé : solution seulement | Réservées aux techniciens et admins ; saisie sur ticket en cours ou en attente | Le diagnostic est technique ; l'employé lit la solution dans `resolution`. Le module ticket ne dépend pas du module intervention (interface `SolutionSource`) |
 | Pièces jointes | Liables à un commentaire | Liées au ticket uniquement | Plus simple, sans perte fonctionnelle |
 | Réaffectation | `ASSIGNED → ASSIGNED` | Possible sur tout ticket ouvert, statut conservé | Un admin doit pouvoir réaffecter un ticket en cours |
-| Clôture automatique (RM-08) | Module tickets | Module SLA | Elle dépend du calendrier ouvré |
+| Clôture automatique (RM-08) | Module tickets | Module SLA (`SlaJobs`) | Elle dépend du calendrier ouvré |
+| Pause SLA | Pendant `PENDING` et après réouverture | Pendant `PENDING`, `RESOLVED` et `CLOSED` ; à la reprise, l'échéance est décalée du temps ouvré de pause | Une seule règle couvre l'attente, le refus de résolution et la réouverture |
+| Fuseau horaire | Dans le calendrier ouvré (table) | Configuration de déploiement (`APP_TIMEZONE`) ; la table garde horaires et jours ouvrés | Le fuseau sert aussi aux années des références et à l'affichage |
+| API SLA | `/api/sla/configurations` | `/api/sla/rules`, `/calendar`, `/holidays`, `/preview` | Vocabulaire plus clair (« règle ») |
+| Alertes SLA | Une par seuil | Une par seuil, réarmée si une reprise repousse l'échéance dans le futur ; indicateurs posés par `UPDATE` ciblé, sans incrémenter `@Version` | Pas de conflit `409` avec un technicien qui modifie le ticket au même moment |
 
 ## Points à valider
 

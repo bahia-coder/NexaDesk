@@ -97,13 +97,47 @@ public class Ticket extends BaseEntity {
     @Column(name = "reopen_count", nullable = false)
     private int reopenCount;
 
+    // ---- SLA tracking (maintained by the SLA module through TicketSla) ----
+
+    /** Snapshot of the rule's mode at creation: business hours or 24/7. */
+    @Column(name = "sla_business_hours")
+    private Boolean slaBusinessHours;
+
+    @Column(name = "first_response_due_at")
+    private Instant firstResponseDueAt;
+
+    @Column(name = "resolution_due_at")
+    private Instant resolutionDueAt;
+
+    @Column(name = "first_responded_at")
+    private Instant firstRespondedAt;
+
+    /** Set while the resolution clock is stopped (pending, resolved, closed). */
+    @Column(name = "sla_paused_at")
+    private Instant slaPausedAt;
+
+    /** Business minutes spent paused so far; the resolution deadline has been pushed back by this amount. */
+    @Column(name = "sla_paused_minutes", nullable = false)
+    private int slaPausedMinutes;
+
+    @Column(name = "sla_warning_sent_at")
+    private Instant slaWarningSentAt;
+
+    @Column(name = "sla_breach_sent_at")
+    private Instant slaBreachSentAt;
+
     @Version
     @Column(nullable = false)
     private int version;
 
+    /**
+     * @param createdAt optional; when given, the same instant is used for the SLA deadlines computed at creation
+     */
     @Builder
     public Ticket(String reference, TicketType type, String title, String description, Level impact, Level urgency,
-                  Priority priority, TicketCategory category, TicketSubCategory subcategory, User requester) {
+                  Priority priority, TicketCategory category, TicketSubCategory subcategory, User requester,
+                  Instant createdAt) {
+        setCreatedAt(createdAt);
         this.reference = reference;
         this.type = type;
         this.title = title;

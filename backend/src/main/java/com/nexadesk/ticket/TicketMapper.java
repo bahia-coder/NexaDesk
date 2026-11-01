@@ -27,11 +27,12 @@ import org.springframework.stereotype.Component;
 public class TicketMapper {
 
     private final CategoryMapper categoryMapper;
+    private final TicketSla ticketSla;
 
     public TicketSummaryDto toSummary(Ticket t) {
         return new TicketSummaryDto(t.getId(), t.getReference(), t.getType(), t.getTitle(), t.getStatus(),
                 priority(t.getPriority()), categoryMapper.toRef(t.getCategory()), user(t.getRequester()),
-                user(t.getAssignee()), t.getCreatedAt(), t.getUpdatedAt());
+                user(t.getAssignee()), ticketSla.view(t), t.getCreatedAt(), t.getUpdatedAt());
     }
 
     public TicketDetailDto toDetail(Ticket t, TicketFeedback feedback, Set<TicketAction> actions) {
@@ -39,8 +40,8 @@ public class TicketMapper {
                 t.getStatus(), t.getImpact(), t.getUrgency(), priority(t.getPriority()),
                 categoryMapper.toRef(t.getCategory()), subcategory(t.getSubcategory()), user(t.getRequester()),
                 user(t.getAssignee()), t.getPendingReason(), t.getRejectionReason(), t.getResolution(),
-                t.getResolvedAt(), t.getClosedAt(), t.getReopenCount(), t.getVersion(), t.getCreatedAt(),
-                t.getUpdatedAt(), feedback(feedback), actions);
+                t.getResolvedAt(), t.getClosedAt(), t.getReopenCount(), ticketSla.view(t), t.getVersion(),
+                t.getCreatedAt(), t.getUpdatedAt(), feedback(feedback), actions);
     }
 
     public CommentDto toDto(TicketComment c) {

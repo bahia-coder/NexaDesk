@@ -34,7 +34,11 @@ public class TicketReferenceGenerator {
     }
 
     public String next(TicketType type) {
-        int year = LocalDate.now(clock.withZone(zone)).getYear();
+        return next(type, LocalDate.now(clock.withZone(zone)).getYear());
+    }
+
+    /** Explicit year: used when importing or seeding tickets created in the past. */
+    public String next(TicketType type, int year) {
         int value = jdbc.sql(NEXT_VALUE_SQL)
                 .param("type", type.name())
                 .param("year", year)

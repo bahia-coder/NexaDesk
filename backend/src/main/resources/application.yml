@@ -46,6 +46,10 @@ nexadesk:
     max-attachments-per-ticket: 5
   storage:
     location: ${STORAGE_LOCATION:./uploads}
+  sla:
+    # A RESOLVED ticket the requester neither confirms nor rejects is closed after this much business time.
+    auto-close-after: 72h
+    monitor-interval: 60s
   security:
     jwt:
       secret: ${JWT_SECRET}
