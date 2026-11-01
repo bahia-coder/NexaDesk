@@ -10,9 +10,9 @@ public final class TechnicianDtos {
     private TechnicianDtos() {
     }
 
-    /** A technician as offered for assignment. The open-ticket workload is added by the ticket module. */
+    /** A technician as offered for assignment, with their current workload (open tickets assigned). */
     public record TechnicianDto(Long id, String fullName, String email, String jobTitle, String avatarColor,
-                                List<CategoryRefDto> specialties) {
+                                List<CategoryRefDto> specialties, long openTickets) {
     }
 
     public record SpecialtiesRequest(

@@ -5,6 +5,9 @@ import com.nexadesk.common.web.PageResponse;
 import com.nexadesk.exception.BusinessException;
 import com.nexadesk.exception.ErrorCode;
 import com.nexadesk.exception.ResourceNotFoundException;
+import com.nexadesk.ticket.Ticket;
+import com.nexadesk.ticket.TicketRepository;
+import com.nexadesk.ticket.TicketStatus;
 import com.nexadesk.user.dto.CreateUserRequest;
 import com.nexadesk.user.dto.DepartmentDto;
 import com.nexadesk.user.dto.TemporaryPasswordResponse;
@@ -31,6 +34,7 @@ public class UserAdminService {
     private final RoleRepository roleRepository;
     private final DepartmentRepository departmentRepository;
     private final RefreshTokenService refreshTokenService;
+    private final TicketRepository ticketRepository;
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator passwordGenerator;
     private final UserMapper mapper;
@@ -95,6 +99,9 @@ public class UserAdminService {
             return mapper.toDto(user);
         }
         ensureNotLastActiveAdmin(user);
+        if (newRole != RoleCode.TECHNICIAN) {
+            ensureNoOpenAssignedTickets(user);
+        }
         user.setRole(role(newRole));
         if (newRole != RoleCode.TECHNICIAN) {
             user.replaceSpecialties(List.of());
@@ -115,6 +122,7 @@ public class UserAdminService {
             return mapper.toDto(user);
         }
         ensureNotLastActiveAdmin(user);
+        ensureNoOpenAssignedTickets(user);
         user.setActive(false);
         refreshTokenService.revokeAllForUser(user.getId());
         log.info("User {} deactivated by {}", id, actorId);
@@ -147,6 +155,21 @@ public class UserAdminService {
     @Transactional(readOnly = true)
     public List<DepartmentDto> departments() {
         return departmentRepository.findAll(Sort.by("name")).stream().map(mapper::toDto).toList();
+    }
+
+    /** No ticket may be left assigned to someone who can no longer work on it: reassign first. */
+    private void ensureNoOpenAssignedTickets(User user) {
+        if (user.getRoleCode() != RoleCode.TECHNICIAN) {
+            return;
+        }
+        List<Ticket> open = ticketRepository.findTop10ByAssignee_IdAndStatusInOrderByCreatedAtAsc(user.getId(),
+                TicketStatus.OPEN);
+        if (!open.isEmpty()) {
+            String references = String.join(", ", open.stream().map(Ticket::getReference).toList());
+            throw new BusinessException(ErrorCode.TECHNICIAN_HAS_OPEN_TICKETS,
+                    user.getFullName() + " a encore des tickets en cours (" + references
+                            + (open.size() == 10 ? ", …" : "") + ") : réaffectez-les d'abord.");
+        }
     }
 
     private void ensureNotLastActiveAdmin(User user) {

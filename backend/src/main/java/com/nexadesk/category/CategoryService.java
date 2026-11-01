@@ -7,6 +7,8 @@ import com.nexadesk.category.dto.CategoryDtos.SubCategoryRequest;
 import com.nexadesk.exception.BusinessException;
 import com.nexadesk.exception.ErrorCode;
 import com.nexadesk.exception.ResourceNotFoundException;
+import com.nexadesk.ticket.TicketRepository;
+import com.nexadesk.ticket.TicketStatus;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -26,6 +28,7 @@ public class CategoryService {
 
     private final TicketCategoryRepository categoryRepository;
     private final TicketSubCategoryRepository subCategoryRepository;
+    private final TicketRepository ticketRepository;
     private final CategoryMapper mapper;
 
     /**
@@ -65,10 +68,17 @@ public class CategoryService {
         return mapper.toDto(category);
     }
 
-    // The "no open ticket in this category" rule is enforced by the ticket module once tickets exist.
+    /** A category still used by open tickets cannot be deactivated (they would point to a hidden category). */
     @Transactional
     public CategoryDto setActive(Long id, boolean active) {
         TicketCategory category = findCategory(id);
+        if (!active) {
+            long openTickets = ticketRepository.countByCategory_IdAndStatusIn(id, TicketStatus.OPEN);
+            if (openTickets > 0) {
+                throw new BusinessException(ErrorCode.CATEGORY_IN_USE, "La catégorie « " + category.getName()
+                        + " » est utilisée par " + openTickets + " ticket(s) en cours.");
+            }
+        }
         category.setActive(active);
         return mapper.toDto(category);
     }

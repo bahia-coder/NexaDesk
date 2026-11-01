@@ -17,7 +17,11 @@ import com.nexadesk.user.dto.TemporaryPasswordResponse;
 import com.nexadesk.user.dto.UpdateUserRequest;
 import com.nexadesk.user.password.StrongPasswordValidator;
 import com.nexadesk.user.password.TemporaryPasswordGenerator;
+import com.nexadesk.ticket.Ticket;
+import com.nexadesk.ticket.TicketRepository;
+import com.nexadesk.ticket.TicketStatus;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +45,8 @@ class UserAdminServiceTest {
     private DepartmentRepository departmentRepository;
     @Mock
     private RefreshTokenService refreshTokenService;
+    @Mock
+    private TicketRepository ticketRepository;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
     private UserAdminService service;
@@ -48,7 +54,22 @@ class UserAdminServiceTest {
     @BeforeEach
     void setUp() {
         service = new UserAdminService(userRepository, roleRepository, departmentRepository, refreshTokenService,
-                passwordEncoder, new TemporaryPasswordGenerator(), new UserMapperImpl());
+                ticketRepository, passwordEncoder, new TemporaryPasswordGenerator(), new UserMapperImpl());
+    }
+
+    @Test
+    void technicianWithOpenTicketsCannotBeDeactivatedNorDemoted() {
+        existing(8L, RoleCode.TECHNICIAN);
+        Ticket open = Ticket.builder().reference("INC-2026-0007").build();
+        when(ticketRepository.findTop10ByAssignee_IdAndStatusInOrderByCreatedAtAsc(8L, TicketStatus.OPEN))
+                .thenReturn(List.of(open));
+
+        assertThatThrownBy(() -> service.deactivate(8L, ADMIN_ID))
+                .hasMessageContaining("INC-2026-0007")
+                .extracting("code").isEqualTo(ErrorCode.TECHNICIAN_HAS_OPEN_TICKETS);
+        assertThatThrownBy(() -> service.changeRole(8L, RoleCode.EMPLOYEE, ADMIN_ID))
+                .extracting("code").isEqualTo(ErrorCode.TECHNICIAN_HAS_OPEN_TICKETS);
+        verify(refreshTokenService, never()).revokeAllForUser(anyLong());
     }
 
     private User existing(long id, RoleCode role) {

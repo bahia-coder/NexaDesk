@@ -12,6 +12,8 @@ import com.nexadesk.category.dto.CategoryDtos.CategoryRequest;
 import com.nexadesk.category.dto.CategoryDtos.SubCategoryDto;
 import com.nexadesk.category.dto.CategoryDtos.SubCategoryRequest;
 import com.nexadesk.exception.ErrorCode;
+import com.nexadesk.ticket.TicketRepository;
+import com.nexadesk.ticket.TicketStatus;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,12 +30,15 @@ class CategoryServiceTest {
     private TicketCategoryRepository categoryRepository;
     @Mock
     private TicketSubCategoryRepository subCategoryRepository;
+    @Mock
+    private TicketRepository ticketRepository;
 
     private CategoryService service;
 
     @BeforeEach
     void setUp() {
-        service = new CategoryService(categoryRepository, subCategoryRepository, new CategoryMapperImpl());
+        service = new CategoryService(categoryRepository, subCategoryRepository, ticketRepository,
+                new CategoryMapperImpl());
     }
 
     private static TicketCategory category(long id, String name, boolean active) {
@@ -93,6 +98,16 @@ class CategoryServiceTest {
 
         assertThatThrownBy(() -> service.addSubcategory(2L, new SubCategoryRequest("Télécopieur")))
                 .extracting("code").isEqualTo(ErrorCode.INACTIVE_REFERENCE);
+    }
+
+    @Test
+    void categoryUsedByOpenTicketsCannotBeDeactivated() {
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category(1, "Matériel", true)));
+        when(ticketRepository.countByCategory_IdAndStatusIn(1L, TicketStatus.OPEN)).thenReturn(3L);
+
+        assertThatThrownBy(() -> service.setActive(1L, false))
+                .hasMessageContaining("3 ticket(s)")
+                .extracting("code").isEqualTo(ErrorCode.CATEGORY_IN_USE);
     }
 
     @Test

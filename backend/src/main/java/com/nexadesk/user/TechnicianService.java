@@ -7,11 +7,15 @@ import com.nexadesk.category.dto.CategoryDtos.CategoryRefDto;
 import com.nexadesk.exception.BusinessException;
 import com.nexadesk.exception.ErrorCode;
 import com.nexadesk.exception.ResourceNotFoundException;
+import com.nexadesk.ticket.TicketRepository;
+import com.nexadesk.ticket.TicketStatus;
 import com.nexadesk.user.dto.TechnicianDtos.TechnicianDto;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +28,7 @@ public class TechnicianService {
 
     private final UserRepository userRepository;
     private final TicketCategoryRepository categoryRepository;
+    private final TicketRepository ticketRepository;
     private final CategoryMapper categoryMapper;
 
     @Transactional(readOnly = true)
@@ -31,7 +36,13 @@ public class TechnicianService {
         List<User> technicians = categoryId == null
                 ? userRepository.findActiveTechnicians()
                 : userRepository.findActiveTechniciansWithSpecialty(categoryId);
-        return technicians.stream().map(this::toDto).toList();
+        Map<Long, Long> workload = new HashMap<>();
+        for (Object[] row : ticketRepository.countByAssignee(TicketStatus.OPEN)) {
+            workload.put((Long) row[0], (Long) row[1]);
+        }
+        return technicians.stream()
+                .map(user -> toDto(user, workload.getOrDefault(user.getId(), 0L)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -71,9 +82,9 @@ public class TechnicianService {
         return userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("Utilisateur", userId));
     }
 
-    private TechnicianDto toDto(User user) {
+    private TechnicianDto toDto(User user, long openTickets) {
         return new TechnicianDto(user.getId(), user.getFullName(), user.getEmail(), user.getJobTitle(),
-                user.getAvatarColor(), sortedRefs(user.getSpecialties()));
+                user.getAvatarColor(), sortedRefs(user.getSpecialties()), openTickets);
     }
 
     private List<CategoryRefDto> sortedRefs(Set<TicketCategory> categories) {

@@ -39,6 +39,13 @@ server:
   forward-headers-strategy: framework
 
 nexadesk:
+  # Company time zone: ticket reference years, business hours (SLA) and date display.
+  time-zone: ${APP_TIMEZONE:Europe/Paris}
+  tickets:
+    reopen-window: 7d
+    max-attachments-per-ticket: 5
+  storage:
+    location: ${STORAGE_LOCATION:./uploads}
   security:
     jwt:
       secret: ${JWT_SECRET}

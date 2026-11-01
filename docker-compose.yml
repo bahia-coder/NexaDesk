@@ -27,6 +27,7 @@ services:
       DB_USERNAME: ${POSTGRES_USER:-nexadesk}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Paris}
+      STORAGE_LOCATION: /app/uploads
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       APP_ALLOWED_ORIGINS: ${APP_ALLOWED_ORIGINS:-http://localhost:8088}
       AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}

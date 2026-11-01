@@ -10,6 +10,7 @@ import com.nexadesk.category.TicketCategoryRepository;
 import com.nexadesk.category.dto.CategoryDtos.CategoryRefDto;
 import com.nexadesk.exception.ErrorCode;
 import com.nexadesk.support.TestUsers;
+import com.nexadesk.ticket.TicketRepository;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,12 +28,14 @@ class TechnicianServiceTest {
     private UserRepository userRepository;
     @Mock
     private TicketCategoryRepository categoryRepository;
+    @Mock
+    private TicketRepository ticketRepository;
 
     private TechnicianService service;
 
     @BeforeEach
     void setUp() {
-        service = new TechnicianService(userRepository, categoryRepository, new CategoryMapperImpl());
+        service = new TechnicianService(userRepository, categoryRepository, ticketRepository, new CategoryMapperImpl());
     }
 
     private static TicketCategory category(long id, String name, boolean active) {
