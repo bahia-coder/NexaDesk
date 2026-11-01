@@ -6,6 +6,13 @@ spring:
     username: ${DB_USERNAME:nexadesk}
     password: ${DB_PASSWORD:nexadesk}
 
+nexadesk:
+  security:
+    jwt:
+      # Dev-only key (base64 of a public, explicitly non-secret phrase). Production requires JWT_SECRET.
+      secret: ${JWT_SECRET:bmV4YWRlc2stZGV2LW9ubHktc2lnbmluZy1rZXktbmV2ZXItdXNlLWluLXByb2R1Y3Rpb24h}
+    allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:4200}
+
 # 8081 in development (8080 is often taken by other local tools); the Docker image keeps 8080.
 server:
   port: ${SERVER_PORT:8081}

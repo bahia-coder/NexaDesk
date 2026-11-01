@@ -2,25 +2,32 @@ package com.nexadesk.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 
 /**
- * Baseline security: stateless API, everything authenticated except health checks and API docs.
- * JWT authentication is plugged into this chain by the auth module.
+ * Stateless API secured by Bearer JWTs. Role checks live on controllers ({@code @PreAuthorize});
+ * ownership checks ("is this ticket mine?") live in the services.
+ *
+ * <p>CSRF protection is disabled because authentication relies on the Authorization header, which a
+ * browser never sends automatically. The only cookie-based endpoints (refresh / logout) are protected by
+ * a {@code SameSite=Strict} cookie restricted to {@code /api/auth} plus an Origin check.
  */
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
+            "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/auth/logout",
+            "/api/auth/demo-accounts",
             "/actuator/health/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -28,7 +35,9 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtAuthenticationConverter jwtAuthenticationConverter,
+                                                   ProblemDetailSecurityHandler problemHandler) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -38,7 +47,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated())
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
+                .oauth2ResourceServer(oauth -> oauth
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
+                        .authenticationEntryPoint(problemHandler)
+                        .accessDeniedHandler(problemHandler))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(problemHandler)
+                        .accessDeniedHandler(problemHandler));
         return http.build();
     }
 
