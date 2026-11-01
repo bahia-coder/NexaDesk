@@ -21,5 +21,6 @@ public enum TicketAction {
     COMMENT,
     COMMENT_INTERNAL,
     ADD_ATTACHMENT,
+    LOG_INTERVENTION,
     GIVE_FEEDBACK
 }

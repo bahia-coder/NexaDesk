@@ -12,6 +12,7 @@ import com.nexadesk.user.User;
 import com.nexadesk.user.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class TicketWorkflowService {
     private final TicketHistoryRecorder history;
     private final UserRepository userRepository;
     private final TicketService ticketService;
+    private final SolutionSource solutionSource;
     private final Clock clock;
 
     /** A technician takes a new, unassigned ticket of one of their specialties. */
@@ -93,9 +95,12 @@ public class TicketWorkflowService {
                 moveTo(ticket, actor, TicketStatus.IN_PROGRESS, blankToNull(request.reason()));
             }
             case RESOLVE -> {
-                String resolution = blankToNull(request.resolution());
+                String resolution = Optional.ofNullable(blankToNull(request.resolution()))
+                        .or(() -> solutionSource.latestSolution(ticket.getId()))
+                        .orElse(null);
                 if (resolution == null || resolution.length() < 10) {
-                    throw required("Décrivez la solution appliquée (10 caractères minimum).");
+                    throw required("Décrivez la solution appliquée (10 caractères minimum), "
+                            + "ou renseignez-la dans une intervention.");
                 }
                 ticket.setResolution(resolution);
                 ticket.setResolvedAt(now);

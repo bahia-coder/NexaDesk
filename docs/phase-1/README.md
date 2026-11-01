@@ -34,7 +34,8 @@ Décisions prises pendant le développement, qui affinent la conception ci-dessu
 | Références de ticket | `SELECT … FOR UPDATE` sur le compteur | `INSERT … ON CONFLICT DO UPDATE … RETURNING` | Atomique, et couvre aussi le premier ticket de l'année (aucune ligne à verrouiller) |
 | Actions possibles | `GET /tickets/{id}/allowed-transitions` | Champ `availableActions` dans le détail du ticket | Une requête de moins ; même source de vérité (`TicketPolicy`) |
 | Visibilité technicien | Tickets assignés et non assignés de ses spécialités | Tickets assignés, tickets demandés et **tous** les tickets de ses spécialités | Permet l'entraide (notes internes) au sein d'une même spécialité |
-| Solution (RM-07) | Exige une intervention avec solution | Champ `resolution` obligatoire pour passer en `RESOLVED` | Les interventions (module 5) détaillent le travail et le temps passé ; la solution reste lisible sur le ticket |
+| Solution (RM-07) | Exige une intervention avec solution | Champ `resolution` obligatoire pour passer en `RESOLVED` ; s'il est vide, la solution de la dernière intervention est reprise | La solution reste lisible sur le ticket ; le technicien ne la retape pas |
+| Interventions | Employé : solution seulement | Réservées aux techniciens et admins ; saisie sur ticket en cours ou en attente | Le diagnostic est technique ; l'employé lit la solution dans `resolution`. Le module ticket ne dépend pas du module intervention (interface `SolutionSource`) |
 | Pièces jointes | Liables à un commentaire | Liées au ticket uniquement | Plus simple, sans perte fonctionnelle |
 | Réaffectation | `ASSIGNED → ASSIGNED` | Possible sur tout ticket ouvert, statut conservé | Un admin doit pouvoir réaffecter un ticket en cours |
 | Clôture automatique (RM-08) | Module tickets | Module SLA | Elle dépend du calendrier ouvré |

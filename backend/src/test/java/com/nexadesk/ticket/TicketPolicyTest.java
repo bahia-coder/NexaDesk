@@ -101,6 +101,22 @@ class TicketPolicyTest {
     }
 
     @Test
+    void interventionsAreLoggedByTheHandlerOnStartedTicketsOnly() {
+        status(TicketStatus.ASSIGNED, specialist);
+        assertThat(policy.availableActions(ticket, specialist, NOW)).doesNotContain(TicketAction.LOG_INTERVENTION);
+
+        status(TicketStatus.IN_PROGRESS, specialist);
+        assertThat(policy.availableActions(ticket, specialist, NOW)).contains(TicketAction.LOG_INTERVENTION);
+        assertThat(policy.availableActions(ticket, admin, NOW)).contains(TicketAction.LOG_INTERVENTION);
+        assertThat(policy.availableActions(ticket, requester, NOW)).doesNotContain(TicketAction.LOG_INTERVENTION);
+
+        status(TicketStatus.PENDING, otherTechnician);
+        assertThat(policy.availableActions(ticket, specialist, NOW))
+                .as("same specialty but not the assignee")
+                .doesNotContain(TicketAction.LOG_INTERVENTION);
+    }
+
+    @Test
     void onlyTheRequesterConfirmsOrRejectsAResolution() {
         status(TicketStatus.RESOLVED, specialist);
         assertThat(policy.availableActions(ticket, requester, NOW))

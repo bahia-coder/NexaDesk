@@ -77,6 +77,7 @@ public class TicketPolicy {
             case COMMENT -> !status.isTerminal();
             case COMMENT_INTERNAL -> staff && !status.isTerminal();
             case ADD_ATTACHMENT -> (requester || handler) && !status.isTerminal();
+            case LOG_INTERVENTION -> handler && (status == TicketStatus.IN_PROGRESS || status == TicketStatus.PENDING);
             case GIVE_FEEDBACK -> requester && (status == TicketStatus.RESOLVED || status == TicketStatus.CLOSED);
         };
     }
