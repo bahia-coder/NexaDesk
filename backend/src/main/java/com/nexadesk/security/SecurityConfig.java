@@ -9,6 +9,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -53,7 +54,8 @@ public class SecurityConfig {
                         .accessDeniedHandler(problemHandler))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(problemHandler)
-                        .accessDeniedHandler(problemHandler));
+                        .accessDeniedHandler(problemHandler))
+                .addFilterAfter(new PasswordChangeRequiredFilter(problemHandler), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

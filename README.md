@@ -85,4 +85,6 @@ Valeurs de test uniquement, sans aucune donnée réelle derrière.
 - `POST /api/auth/login` renvoie un **access token JWT** (15 min) à envoyer en `Authorization: Bearer`, et pose un **refresh token** opaque dans un cookie `httpOnly`, `Secure`, `SameSite=Strict`, limité à `/api/auth` (7 jours).
 - `POST /api/auth/refresh` fait **tourner** le refresh token. Réutiliser un ancien token (au-delà de 10 s de tolérance pour les onglets concurrents) révoque toute la session : c'est la détection de vol.
 - 5 échecs de connexion verrouillent le compte 15 minutes.
+- Un compte créé ou réinitialisé par l'admin reçoit un **mot de passe temporaire**. Tant qu'il n'est pas changé, le serveur refuse toute requête hors `/api/auth` et `/api/profile` (`403 PASSWORD_CHANGE_REQUIRED`).
+- Changer son mot de passe met fin à toutes les autres sessions. Désactiver un compte ou changer son rôle révoque aussi ses sessions.
 - Toutes les erreurs suivent le format RFC 9457 (`application/problem+json`) avec un `code` stable et un `traceId` (en-tête `X-Trace-Id`).

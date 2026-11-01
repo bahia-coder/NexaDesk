@@ -34,7 +34,7 @@ public class ProblemDetailSecurityHandler implements AuthenticationEntryPoint, A
         write(response, ErrorCode.ACCESS_DENIED);
     }
 
-    private void write(HttpServletResponse response, ErrorCode code) throws IOException {
+    public void write(HttpServletResponse response, ErrorCode code) throws IOException {
         ProblemDetail problem = ProblemDetails.of(code, code.getDefaultMessage());
         response.setStatus(code.getStatus().value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);

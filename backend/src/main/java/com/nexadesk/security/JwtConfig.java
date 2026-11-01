@@ -23,6 +23,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 public class JwtConfig {
 
     static final String ROLE_CLAIM = "role";
+    /** Present (true) while the user still has an admin-issued temporary password. */
+    static final String PASSWORD_CHANGE_CLAIM = "pwd_change";
     private static final int MIN_KEY_BYTES = 32;
 
     @Bean

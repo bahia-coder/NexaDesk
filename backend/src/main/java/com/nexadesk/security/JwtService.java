@@ -26,17 +26,19 @@ public class JwtService {
     public AccessToken issue(User user) {
         Instant now = clock.instant();
         Instant expiresAt = now.plus(properties.jwt().accessTokenTtl());
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
                 .issuer(properties.jwt().issuer())
                 .issuedAt(now)
                 .expiresAt(expiresAt)
                 .subject(String.valueOf(user.getId()))
                 .claim(JwtConfig.ROLE_CLAIM, user.getRoleCode().name())
                 .claim("email", user.getEmail())
-                .claim("name", user.getFullName())
-                .build();
+                .claim("name", user.getFullName());
+        if (user.isMustChangePassword()) {
+            claims.claim(JwtConfig.PASSWORD_CHANGE_CLAIM, true);
+        }
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
-        String value = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+        String value = encoder.encode(JwtEncoderParameters.from(header, claims.build())).getTokenValue();
         return new AccessToken(value, expiresAt);
     }
 }

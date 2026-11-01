@@ -76,6 +76,12 @@ public class AuthService {
         }
 
         user.registerSuccessfulLogin(now);
+        return startSession(user);
+    }
+
+    /** Opens a new session (token family) for an already authenticated user. */
+    @Transactional
+    public AuthResult startSession(User user) {
         return new AuthResult(jwtService.issue(user), refreshTokenService.issue(user), userMapper.toCurrentUser(user));
     }
 
