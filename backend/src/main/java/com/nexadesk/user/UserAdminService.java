@@ -96,6 +96,9 @@ public class UserAdminService {
         }
         ensureNotLastActiveAdmin(user);
         user.setRole(role(newRole));
+        if (newRole != RoleCode.TECHNICIAN) {
+            user.replaceSpecialties(List.of());
+        }
         // The role is embedded in issued access tokens: end existing sessions so it takes effect promptly.
         refreshTokenService.revokeAllForUser(user.getId());
         log.info("User {} role changed to {} by {}", id, newRole, actorId);

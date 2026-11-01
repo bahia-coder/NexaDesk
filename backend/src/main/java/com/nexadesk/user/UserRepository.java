@@ -1,5 +1,6 @@
 package com.nexadesk.user;
 
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -7,6 +8,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.lang.NonNull;
 
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
@@ -22,6 +25,21 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @NonNull
     @EntityGraph(attributePaths = {"role", "department"})
     Page<User> findAll(Specification<User> spec, @NonNull Pageable pageable);
+
+    @Query("""
+            select distinct u from User u
+            left join fetch u.specialties
+            where u.role.code = com.nexadesk.user.RoleCode.TECHNICIAN and u.active = true
+            order by u.lastName, u.firstName""")
+    List<User> findActiveTechnicians();
+
+    @Query("""
+            select distinct u from User u
+            left join fetch u.specialties
+            where u.role.code = com.nexadesk.user.RoleCode.TECHNICIAN and u.active = true
+              and exists (select 1 from User t join t.specialties s where t = u and s.id = :categoryId)
+            order by u.lastName, u.firstName""")
+    List<User> findActiveTechniciansWithSpecialty(@Param("categoryId") Long categoryId);
 
     boolean existsByEmail(String email);
 

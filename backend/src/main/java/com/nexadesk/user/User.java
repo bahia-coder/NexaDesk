@@ -1,15 +1,21 @@
 package com.nexadesk.user;
 
+import com.nexadesk.category.TicketCategory;
 import com.nexadesk.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -71,6 +77,14 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private int version;
 
+    /** Categories a technician is qualified for (empty for other roles). */
+    @ManyToMany
+    @JoinTable(name = "technician_specialties",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id"))
+    @Setter(AccessLevel.NONE)
+    private Set<TicketCategory> specialties = new HashSet<>();
+
     @Builder
     public User(String email, String passwordHash, String firstName, String lastName, String jobTitle,
                 String phone, String avatarColor, Role role, Department department) {
@@ -110,6 +124,15 @@ public class User extends BaseEntity {
             return true;
         }
         return false;
+    }
+
+    public void replaceSpecialties(Collection<TicketCategory> categories) {
+        specialties.clear();
+        specialties.addAll(categories);
+    }
+
+    public boolean hasSpecialty(Long categoryId) {
+        return specialties.stream().anyMatch(category -> category.getId().equals(categoryId));
     }
 
     public void registerSuccessfulLogin(Instant now) {
