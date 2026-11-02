@@ -24,6 +24,7 @@
         <tika.version>3.3.3</tika.version>
         <poi.version>5.5.1</poi.version>
         <openpdf.version>2.4.0</openpdf.version>
+        <anthropic.version>2.34.0</anthropic.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <!-- Placeholder so @{argLine} resolves even when no coverage agent (e.g. JaCoCo) sets it -->
         <argLine/>
@@ -105,6 +106,13 @@
             <groupId>com.github.librepdf</groupId>
             <artifactId>openpdf</artifactId>
             <version>${openpdf.version}</version>
+        </dependency>
+
+        <!-- Optional LLM provider (AI module): official Anthropic SDK -->
+        <dependency>
+            <groupId>com.anthropic</groupId>
+            <artifactId>anthropic-java</artifactId>
+            <version>${anthropic.version}</version>
         </dependency>
 
         <!-- Boilerplate reduction and DTO mapping -->

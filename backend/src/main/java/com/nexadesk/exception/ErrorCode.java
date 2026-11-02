@@ -34,6 +34,7 @@ public enum ErrorCode {
     ATTACHMENT_LIMIT(HttpStatus.UNPROCESSABLE_ENTITY, "Nombre maximal de pièces jointes atteint pour ce ticket."),
     UNSUPPORTED_FILE_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
             "Type de fichier non autorisé (PNG, JPG, PDF, TXT, LOG, DOCX, XLSX)."),
+    KNOWLEDGE_ARTICLE_EXISTS(HttpStatus.CONFLICT, "Un article a déjà été rédigé à partir de ce ticket."),
     INACTIVE_REFERENCE(HttpStatus.UNPROCESSABLE_ENTITY, "Cet élément est désactivé et ne peut pas être utilisé."),
     SPECIALTIES_TECHNICIAN_ONLY(HttpStatus.UNPROCESSABLE_ENTITY,
             "Seuls les techniciens peuvent avoir des spécialités."),

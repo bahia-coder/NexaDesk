@@ -59,6 +59,10 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     @EntityGraph(attributePaths = {"priority", "category", "requester", "assignee"})
     List<Ticket> findByCreatedAtAfterOrderByCreatedAtAsc(Instant createdAfter);
 
+    /** Rows of a native search result (similar tickets), with what a summary shows. */
+    @EntityGraph(attributePaths = {"priority", "category", "requester", "assignee"})
+    List<Ticket> findAllByIdIn(Collection<Long> ids);
+
     long countByCategory_IdAndStatusIn(Long categoryId, Collection<TicketStatus> statuses);
 
     List<Ticket> findTop10ByAssignee_IdAndStatusInOrderByCreatedAtAsc(Long assigneeId,

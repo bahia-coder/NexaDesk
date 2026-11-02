@@ -45,6 +45,12 @@ Décisions prises pendant le développement, qui affinent la conception ci-dessu
 | Équipements partagés | « En service » = affecté à un utilisateur | `IN_USE` sans titulaire = matériel partagé à un emplacement (imprimante, serveur) ; emplacement obligatoire | Une imprimante d'étage n'appartient à personne |
 | RM-14 | L'employé choisit parmi ses équipements | Ses équipements **et** le matériel partagé ; technicien et admin : tout le parc actif (`/api/equipment/selectable`) | L'employé doit pouvoir signaler une panne d'imprimante |
 | Code d'inventaire | Non précisé | Séquence PostgreSQL `equipment_code_seq` (`EQ-0001`) | Sûre en concurrence, jamais réutilisée |
+| Fournisseur LLM | À choisir en Phase 3 | Deux connecteurs : API Anthropic (SDK Java officiel, structured outputs) et API OpenAI-compatible (Ollama, OpenAI, Mistral…), choisis par `AI_PROVIDER` | Démonstratif en entretien et réversible ; Ollama permet un mode réel gratuit en local |
+| Module IA | `HeuristicAiProvider` implémente `AiProvider` | `LlmClient` ne transporte que les appels au modèle ; l'heuristique est une logique séparée (`HeuristicClassifier`, `HeuristicSummary`) et `AiService` choisit, valide et bascule | Une heuristique n'est pas un « fournisseur de complétion » : chaque chemin reste testable seul |
+| Timeout LLM | 10 s | 20 s par défaut (`AI_TIMEOUT`), une seule nouvelle tentative | Les modèles récents réfléchissent avant de répondre ; au-delà, l'heuristique répond |
+| Pertinence de la similarité | Non précisé | `ts_rank` (titre pondéré) + 0,3 × similarité trigramme ; seuils absolu (0,1) et relatif (50 % du meilleur) ; score affiché relatif au meilleur résultat | Une longue description partage toujours quelques mots avec tout : ces seuils évitent les faux positifs mesurés sur la démo |
+| Assistant sans article | Le LLM répond | Si aucun article n'est pertinent, le modèle n'est pas appelé et la création d'un ticket est proposée | Pas de réponse inventée hors de la base de connaissances, et pas de coût inutile |
+| Liens ticket ↔ article | Technicien du ticket | Technicien assigné ou admin, articles publiés uniquement ; le demandeur ne voit que les articles publiés | Un brouillon n'est pas une solution validée |
 | Alertes SLA | Une par seuil | Une par seuil, réarmée si une reprise repousse l'échéance dans le futur ; indicateurs posés par `UPDATE` ciblé, sans incrémenter `@Version` | Pas de conflit `409` avec un technicien qui modifie le ticket au même moment |
 
 ## Points à valider

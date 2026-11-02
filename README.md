@@ -96,6 +96,42 @@ Le profil `demo` crée aussi 8 catégories, 10 équipements (reliés aux tickets
 - **Rapport filtrable** (`/api/reports/summary` : période, catégorie, technicien ; un technicien ne voit que ses chiffres), avec export **Excel** (Apache POI, 6 feuilles) et **PDF** (OpenPDF, police intégrée : aucune dépendance aux polices du serveur).
 - **Journal d'audit** (`/api/audit`, admin) : connexions réussies et échouées (avec le motif), comptes, rôles, configuration (catégories, priorités, SLA, jours fériés), équipements et actions clés sur les tickets. Chaque entrée contient l'auteur, l'adresse IP, le `traceId`, et les valeurs avant et après en JSONB. L'audit s'écrit dans la transaction de l'action : une action annulée ne laisse pas de trace.
 
+## Base de connaissances
+
+- Articles rédigés par les techniciens (brouillons), publiés puis archivés par l'admin. Un brouillon peut être généré à partir d'un ticket résolu : la description devient les symptômes, la résolution devient la solution.
+- **Recherche plein texte PostgreSQL** (configuration `french` : « imprimantes » trouve « imprimante »), colonnes `tsvector` générées et index GIN, complétée par la similarité trigramme (`pg_trgm`) pour les fautes de frappe. Un employé ne voit que les articles publiés.
+- Compteur de vues, vote « cet article m'a aidé » (une seule fois par utilisateur, garanti par la clé primaire), liens entre tickets et articles.
+- Recherche globale du header (`/api/search`) : tickets et articles ; pour l'admin, aussi les utilisateurs et les équipements.
+
+## IA
+
+L'application fonctionne entièrement sans IA. **Chaque réponse indique sa source** (`LLM`, `HEURISTIC` ou `DISABLED`) avec une mention à afficher : on ne présente jamais un résultat local comme une réponse d'IA.
+
+| Fonction | Sans modèle (par défaut) | Avec un modèle connecté |
+|---|---|---|
+| Incidents et articles similaires | Toujours actifs : recherche plein texte et trigrammes PostgreSQL, en respectant la visibilité des tickets | idem |
+| Classification (catégorie, impact, urgence → priorité) | Mots-clés de chaque catégorie et formulations (« bloqué », « toute l'équipe ») | Réponse JSON validée ; la catégorie doit exister |
+| Résumé d'un ticket | Résumé extractif (faits du ticket), présenté comme « non IA » | Résumé rédigé |
+| Pistes de résolution | Solutions des tickets similaires résolus et articles | Étapes rédigées à partir de ces sources uniquement |
+| Assistant | Articles les plus pertinents | Réponse rédigée à partir des articles trouvés (RAG simple), articles cités |
+
+Configuration (variables d'environnement, jamais dans Git) :
+
+```bash
+AI_MODE=llm AI_PROVIDER=anthropic AI_API_KEY=...                          # Claude (SDK officiel), claude-opus-5-5 par défaut
+AI_MODE=llm AI_PROVIDER=openai-compatible AI_BASE_URL=http://localhost:11434/v1 AI_MODEL=llama3.2   # Ollama local, gratuit
+```
+
+- Si la configuration `llm` est incomplète, l'API démarre en mode heuristique et l'indique dans les logs.
+- Garde-fous :
+  - délai maximal par appel (`AI_TIMEOUT`, 20 s) ;
+  - limite par utilisateur (`AI_REQUESTS_PER_MINUTE`, 10) ;
+  - réponse JSON validée strictement : un identifiant de source inventé est rejeté.
+
+  En cas d'échec, l'heuristique répond à la place, et la réponse le signale.
+- Minimisation des données : le modèle reçoit le contenu des tickets et des articles, jamais un nom ni un e-mail (les personnes sont désignées par leur rôle).
+- Avec Anthropic : structured outputs (schéma JSON imposé), effort `low` et repli côté serveur en cas de refus (`fallbacks`, bêta).
+
 ## Notifications temps réel
 
 - Les services publient des événements de domaine (`TicketEvent`). Un écouteur `@TransactionalEventListener(AFTER_COMMIT)` les transforme en notifications : jamais de notification pour une action annulée.

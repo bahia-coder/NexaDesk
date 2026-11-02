@@ -64,6 +64,19 @@ nexadesk:
       max-attempts: 5
       duration: 15m
     allowed-origins: ${APP_ALLOWED_ORIGINS:http://localhost:8088}
+  ai:
+    # disabled | heuristic (default: free, no model) | llm. Without usable LLM settings, llm runs as heuristic.
+    mode: ${AI_MODE:heuristic}
+    # anthropic (Claude, official SDK) | openai-compatible (Ollama, OpenAI, Mistral, Groq…)
+    provider: ${AI_PROVIDER:anthropic}
+    # From the environment only, never committed. Optional for a local Ollama.
+    api-key: ${AI_API_KEY:}
+    # openai-compatible only, e.g. http://localhost:11434/v1 (Ollama)
+    base-url: ${AI_BASE_URL:}
+    # Empty = claude-opus-5-5 for anthropic; required for openai-compatible (e.g. llama3.2)
+    model: ${AI_MODEL:}
+    timeout: ${AI_TIMEOUT:20s}
+    requests-per-minute: ${AI_REQUESTS_PER_MINUTE:10}
 
 logging:
   pattern:
