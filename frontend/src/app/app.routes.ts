@@ -13,6 +13,21 @@ const devRoutes: Routes =
             import('./features/dev/design-system.page').then((m) => m.DesignSystemPage),
           title: 'NexaDesk · Design system',
         },
+        {
+          // Shell preview: /dev/shell/design-system?role=ADMIN (EMPLOYEE, TECHNICIAN).
+          path: 'dev/shell',
+          loadComponent: () =>
+            import('./layouts/app-shell/app-shell.component').then((m) => m.AppShellComponent),
+          children: [
+            {
+              path: 'design-system',
+              loadComponent: () =>
+                import('./features/dev/design-system.page').then((m) => m.DesignSystemPage),
+              title: 'NexaDesk · Design system',
+            },
+            { path: '', pathMatch: 'full', redirectTo: 'design-system' },
+          ],
+        },
       ]
     : [];
 

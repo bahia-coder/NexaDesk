@@ -1,0 +1,124 @@
+<a class="skip-link" href="#main">Aller au contenu</a>
+
+<div
+  class="shell"
+  [class.shell--compact]="layout.compact()"
+  [class.shell--mobile]="layout.mode() === 'mobile'"
+>
+  @if (layout.mode() === 'mobile' && layout.mobileOpen()) {
+    <div class="shell__backdrop" aria-hidden="true" (click)="layout.closeMobile()"></div>
+  }
+
+  <aside
+    class="sidebar"
+    [class.sidebar--open]="layout.mobileOpen()"
+    [attr.aria-hidden]="layout.mode() === 'mobile' && !layout.mobileOpen() ? true : null"
+    [attr.inert]="layout.mode() === 'mobile' && !layout.mobileOpen() ? '' : null"
+  >
+    <div class="sidebar__brand">
+      <span class="sidebar__logo">
+        <lucide-icon [img]="icons.Hexagon" [size]="20" aria-hidden="true" />
+      </span>
+      <span class="sidebar__name">NexaDesk</span>
+      @if (layout.mode() === 'mobile') {
+        <button
+          type="button"
+          class="sidebar__close btn btn--icon btn--sm"
+          aria-label="Fermer le menu"
+          (click)="layout.closeMobile()"
+        >
+          <lucide-icon [img]="icons.X" [size]="18" aria-hidden="true" />
+        </button>
+      }
+    </div>
+
+    <nav class="sidebar__nav" aria-label="Navigation principale">
+      @for (section of sections(); track $index) {
+        @if (section.title) {
+          <p class="sidebar__section">{{ section.title }}</p>
+        }
+        <ul>
+          @for (item of section.items; track item.path) {
+            <li>
+              @if (item.available) {
+                <a
+                  class="sidebar__link"
+                  [routerLink]="item.path"
+                  routerLinkActive="sidebar__link--active"
+                  ariaCurrentWhenActive="page"
+                  [attr.title]="layout.compact() ? item.label : null"
+                >
+                  <lucide-icon [img]="item.icon" [size]="18" aria-hidden="true" />
+                  <span class="sidebar__label">{{ item.label }}</span>
+                </a>
+              } @else {
+                <span
+                  class="sidebar__link sidebar__link--planned"
+                  aria-disabled="true"
+                  title="Page construite à une prochaine étape (visible en développement uniquement)"
+                >
+                  <lucide-icon [img]="item.icon" [size]="18" aria-hidden="true" />
+                  <span class="sidebar__label">{{ item.label }}</span>
+                </span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </nav>
+
+    @if (layout.mode() === 'desktop') {
+      <div class="sidebar__footer">
+        <button
+          type="button"
+          class="sidebar__link sidebar__toggle"
+          [attr.aria-label]="layout.compact() ? 'Déplier le menu' : 'Replier le menu'"
+          [attr.aria-expanded]="!layout.compact()"
+          (click)="layout.toggleSidebar()"
+        >
+          <lucide-icon
+            [img]="layout.compact() ? icons.PanelLeftOpen : icons.PanelLeftClose"
+            [size]="18"
+            aria-hidden="true"
+          />
+          <span class="sidebar__label">Replier</span>
+        </button>
+      </div>
+    }
+  </aside>
+
+  <div class="shell__main">
+    <header class="header">
+      @if (layout.mode() === 'mobile') {
+        <button
+          type="button"
+          class="btn btn--ghost btn--icon"
+          aria-label="Ouvrir le menu"
+          [attr.aria-expanded]="layout.mobileOpen()"
+          (click)="layout.toggleSidebar()"
+        >
+          <lucide-icon [img]="icons.Menu" [size]="20" aria-hidden="true" />
+        </button>
+      }
+      <p class="header__title">{{ pageTitle() }}</p>
+      <div class="header__actions">
+        <button
+          type="button"
+          class="btn btn--ghost btn--icon"
+          [attr.aria-label]="theme.isDark() ? 'Passer au thème clair' : 'Passer au thème sombre'"
+          (click)="theme.toggle()"
+        >
+          <lucide-icon
+            [img]="theme.isDark() ? icons.Sun : icons.Moon"
+            [size]="18"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+    </header>
+
+    <main id="main" class="shell__content" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+</div>
