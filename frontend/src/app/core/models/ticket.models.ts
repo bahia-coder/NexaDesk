@@ -3,6 +3,8 @@
 export type TicketStatus =
   'NEW' | 'ASSIGNED' | 'IN_PROGRESS' | 'PENDING' | 'RESOLVED' | 'CLOSED' | 'REJECTED';
 
+export type TicketType = 'INCIDENT' | 'SERVICE_REQUEST';
+
 export type PriorityCode = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export type SlaState = 'NONE' | 'ON_TRACK' | 'AT_RISK' | 'BREACHED' | 'PAUSED' | 'MET' | 'MISSED';
@@ -28,8 +30,30 @@ export interface PriorityRef {
   rank: number;
 }
 
+export interface CategoryRef {
+  id: number;
+  name: string;
+  icon: string;
+}
+
 export interface UserRef {
   id: number;
   fullName: string;
   avatarColor: string;
+}
+
+/** A row of a ticket list (backend: TicketSummaryDto). */
+export interface TicketSummary {
+  id: number;
+  reference: string;
+  type: TicketType;
+  title: string;
+  status: TicketStatus;
+  priority: PriorityRef;
+  category: CategoryRef;
+  requester: UserRef;
+  assignee: UserRef | null;
+  sla: SlaView;
+  createdAt: Instant;
+  updatedAt: Instant;
 }

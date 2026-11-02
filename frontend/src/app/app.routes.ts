@@ -71,13 +71,11 @@ export const routes: Routes = [
       import('./layouts/app-shell/app-shell.component').then((m) => m.AppShellComponent),
     children: [
       {
-        // Home until the dashboards are built (next step).
-        path: 'system',
-        loadComponent: () =>
-          import('./features/system-status/system-status.page').then((m) => m.SystemStatusPage),
-        title: 'NexaDesk · État du système',
+        path: 'dashboard',
+        loadChildren: () =>
+          import('./features/dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES),
       },
-      { path: '', pathMatch: 'full', redirectTo: 'system' },
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],
   },
   // Unknown address: home when signed in, sign-in page otherwise (the guards decide).

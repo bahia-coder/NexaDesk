@@ -1,0 +1,231 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page-title">Bonjour {{ auth.user()?.firstName }}</h1>
+      <p class="muted">Vue d’ensemble du support sur les {{ periodLabels[period()] }}.</p>
+    </div>
+    <div class="segmented" role="group" aria-label="Période">
+      @for (days of periods; track days) {
+        <button
+          type="button"
+          class="segmented__item"
+          [attr.aria-pressed]="period() === days"
+          (click)="setPeriod(days)"
+        >
+          {{ periodLabels[days] }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state
+        title="Tableau de bord indisponible"
+        description="Les indicateurs n’ont pas pu être chargés."
+        [icon]="icons.TriangleAlert"
+      >
+        <button type="button" class="btn btn--primary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" />
+          Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else {
+    @let d = data();
+    <section class="kpis" aria-label="Indicateurs clés">
+      <nx-stat-card
+        label="Tickets créés"
+        [value]="d?.kpis?.created?.value ?? 0"
+        [icon]="icons.Ticket"
+        tone="indigo"
+        [change]="d?.kpis?.created?.changePercent ?? null"
+        [loading]="!d"
+      />
+      <nx-stat-card
+        label="Tickets résolus"
+        [value]="d?.kpis?.resolved?.value ?? 0"
+        [icon]="icons.CircleCheck"
+        tone="success"
+        [change]="d?.kpis?.resolved?.changePercent ?? null"
+        [loading]="!d"
+      />
+      <nx-stat-card
+        label="En retard (SLA)"
+        [value]="d?.kpis?.overdue ?? 0"
+        [icon]="icons.TriangleAlert"
+        tone="danger"
+        [hint]="(d?.kpis?.atRisk ?? 0) + ' à risque d’ici l’échéance'"
+        [loading]="!d"
+      />
+      <nx-stat-card
+        label="Temps moyen de résolution"
+        [value]="format.formatHours(d?.kpis?.avgResolutionHours ?? null)"
+        [icon]="icons.Clock"
+        tone="blue"
+        [change]="avgChange()"
+        goodWhen="down"
+        hint="De la création à la résolution"
+        [loading]="!d"
+      />
+    </section>
+
+    <section class="queue card" aria-label="File actuelle">
+      @if (d) {
+        <div class="queue__item">
+          <span class="queue__value">{{ d.kpis.open }}</span
+          ><span class="muted">Ouverts</span>
+        </div>
+        <div class="queue__item">
+          <span class="queue__value">{{ d.kpis.inProgress }}</span
+          ><span class="muted">En cours</span>
+        </div>
+        <div class="queue__item">
+          <span class="queue__value">{{ d.kpis.pending }}</span
+          ><span class="muted">En attente</span>
+        </div>
+        <div class="queue__item">
+          <span class="queue__value">{{ d.kpis.unassigned }}</span
+          ><span class="muted">Non assignés</span>
+        </div>
+        <div class="queue__item">
+          <span class="queue__value">{{ format.formatPercent(d.kpis.resolutionRate) }}</span>
+          <span class="muted">Résolus parmi les créés</span>
+        </div>
+      } @else {
+        <nx-skeleton height="40px" />
+      }
+    </section>
+
+    <div class="grid grid--wide">
+      <section class="card panel" aria-labelledby="timeline-title">
+        <h2 id="timeline-title" class="card__title">Évolution des tickets</h2>
+        @if (d) {
+          <nx-timeline-chart [points]="d.timeline" [granularity]="d.period.granularity" />
+        } @else {
+          <nx-skeleton height="260px" />
+        }
+      </section>
+      <section class="card panel" aria-labelledby="priority-title">
+        <h2 id="priority-title" class="card__title">Créés par priorité</h2>
+        @if (d) {
+          <nx-bar-list [items]="byPriority()" label="Tickets créés par priorité" />
+        } @else {
+          <nx-skeleton height="18px" [lines]="4" />
+        }
+      </section>
+    </div>
+
+    <div class="grid grid--thirds">
+      <section class="card panel" aria-labelledby="sla-title">
+        <h2 id="sla-title" class="card__title">Respect des SLA</h2>
+        @if (d) {
+          <div class="meter">
+            <div class="meter__head">
+              <span>Première réponse</span>
+              <strong>{{ format.formatPercent(d.sla.firstResponseRate) }}</strong>
+            </div>
+            <span class="meter__track"
+              ><span class="meter__fill" [style.width.%]="d.sla.firstResponseRate ?? 0"></span
+            ></span>
+          </div>
+          <div class="meter">
+            <div class="meter__head">
+              <span>Résolution</span>
+              <strong>{{ format.formatPercent(d.sla.resolutionRate) }}</strong>
+            </div>
+            <span class="meter__track"
+              ><span class="meter__fill" [style.width.%]="d.sla.resolutionRate ?? 0"></span
+            ></span>
+          </div>
+          <p class="muted small">Mesuré sur {{ d.sla.resolvedMeasured }} tickets résolus.</p>
+        } @else {
+          <nx-skeleton height="18px" [lines]="4" />
+        }
+      </section>
+
+      <section class="card panel" aria-labelledby="csat-title">
+        <h2 id="csat-title" class="card__title">Satisfaction</h2>
+        @if (d) {
+          <p class="csat">
+            <lucide-icon [img]="icons.Star" [size]="22" aria-hidden="true" />
+            <strong>{{ format.formatRating(d.satisfaction.average) }}</strong>
+            <span class="muted">/ 5 · {{ d.satisfaction.count }} avis</span>
+          </p>
+          <nx-bar-list [items]="ratings()" label="Répartition des notes" emptyText="Aucun avis." />
+        } @else {
+          <nx-skeleton height="18px" [lines]="5" />
+        }
+      </section>
+
+      <section class="card panel" aria-labelledby="category-title">
+        <h2 id="category-title" class="card__title">Créés par catégorie</h2>
+        @if (d) {
+          <nx-bar-list
+            [items]="byCategory()"
+            label="Tickets créés par catégorie"
+            [hideZero]="true"
+          />
+        } @else {
+          <nx-skeleton height="18px" [lines]="5" />
+        }
+      </section>
+    </div>
+
+    <div class="grid grid--wide">
+      <section class="card panel" aria-labelledby="tech-title">
+        <h2 id="tech-title" class="card__title">Performance des techniciens</h2>
+        @if (d) {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Technicien</th>
+                  <th scope="col" class="num">En cours</th>
+                  <th scope="col" class="num">Résolus</th>
+                  <th scope="col" class="num">Temps moyen</th>
+                  <th scope="col" class="num">SLA</th>
+                  <th scope="col" class="num">Note</th>
+                  <th scope="col" class="num">Temps saisi</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (t of d.technicians; track t.id) {
+                  <tr>
+                    <th scope="row">
+                      <span class="who">
+                        <nx-avatar [name]="t.fullName" [color]="t.avatarColor" [size]="28" />
+                        {{ t.fullName }}
+                      </span>
+                    </th>
+                    <td class="num">{{ t.openAssigned }}</td>
+                    <td class="num">{{ t.resolved }}</td>
+                    <td class="num">{{ format.formatHours(t.avgResolutionHours) }}</td>
+                    <td class="num">{{ format.formatPercent(t.slaRate) }}</td>
+                    <td class="num">{{ format.formatRating(t.avgRating) }}</td>
+                    <td class="num">{{ format.formatMinutes(t.minutesLogged) }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="7" class="muted">Aucun technicien actif.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <nx-skeleton height="28px" [lines]="5" />
+        }
+      </section>
+
+      <section class="card panel" aria-labelledby="activity-title">
+        <h2 id="activity-title" class="card__title">Activité récente</h2>
+        @if (d) {
+          <nx-activity-feed [items]="d.recentActivity" />
+        } @else {
+          <nx-skeleton height="16px" [lines]="6" />
+        }
+      </section>
+    </div>
+  }
+</div>
