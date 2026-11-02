@@ -127,6 +127,8 @@ export interface Category {
   name: string;
   description: string | null;
   icon: string;
+  /** Comma-separated words used by the heuristic classifier. */
+  keywords: string | null;
   active: boolean;
   subcategories: { id: number; name: string; active: boolean }[];
 }

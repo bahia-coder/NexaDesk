@@ -107,6 +107,13 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'settings',
+        canMatch: [roleGuard('ADMIN')],
+        loadComponent: () =>
+          import('./features/settings/settings.page').then((m) => m.SettingsPage),
+        title: 'NexaDesk · Paramètres',
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./features/users/profile.page').then((m) => m.ProfilePage),
         title: 'NexaDesk · Mon profil',
