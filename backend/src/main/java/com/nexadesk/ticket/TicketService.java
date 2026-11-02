@@ -9,6 +9,8 @@ import com.nexadesk.category.TicketCategoryRepository;
 import com.nexadesk.category.TicketSubCategory;
 import com.nexadesk.category.TicketSubCategoryRepository;
 import com.nexadesk.common.web.PageResponse;
+import com.nexadesk.equipment.Equipment;
+import com.nexadesk.equipment.EquipmentSelector;
 import com.nexadesk.exception.BusinessException;
 import com.nexadesk.exception.ErrorCode;
 import com.nexadesk.exception.ResourceNotFoundException;
@@ -32,6 +34,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -60,6 +63,7 @@ public class TicketService {
     private final TicketPolicy policy;
     private final TicketMapper mapper;
     private final TicketSla ticketSla;
+    private final EquipmentSelector equipmentSelector;
     private final ApplicationEventPublisher events;
     private final Clock clock;
     private final ZoneId zone;
@@ -69,7 +73,7 @@ public class TicketService {
                          UserRepository userRepository, TicketFeedbackRepository feedbackRepository,
                          TicketReferenceGenerator referenceGenerator, TicketHistoryRecorder history,
                          TicketAccess access, TicketPolicy policy, TicketMapper mapper, TicketSla ticketSla,
-                         ApplicationEventPublisher events, Clock clock,
+                         EquipmentSelector equipmentSelector, ApplicationEventPublisher events, Clock clock,
                          @Value("${nexadesk.time-zone}") ZoneId zone) {
         this.ticketRepository = ticketRepository;
         this.categoryRepository = categoryRepository;
@@ -83,6 +87,7 @@ public class TicketService {
         this.policy = policy;
         this.mapper = mapper;
         this.ticketSla = ticketSla;
+        this.equipmentSelector = equipmentSelector;
         this.events = events;
         this.clock = clock;
         this.zone = zone;
@@ -110,6 +115,7 @@ public class TicketService {
                 .subcategory(subcategory)
                 .requester(requester)
                 .build();
+        ticket.setEquipment(equipmentSelector.requireSelectable(request.equipmentId(), actor));
         ticketSla.onCreated(ticket, now);
         ticketRepository.save(ticket);
 
@@ -172,6 +178,13 @@ public class TicketService {
         history.change(ticket, actor, HistoryAction.UPDATED, "title", ticket.getTitle(), title, null);
         history.change(ticket, actor, HistoryAction.UPDATED, "description", ticket.getDescription(), description,
                 null);
+        Long currentEquipmentId = ticket.getEquipment() == null ? null : ticket.getEquipment().getId();
+        if (!Objects.equals(currentEquipmentId, request.equipmentId())) {
+            Equipment equipment = equipmentSelector.requireSelectable(request.equipmentId(), actor);
+            history.change(ticket, actor, HistoryAction.UPDATED, "equipment", code(ticket.getEquipment()),
+                    code(equipment), null);
+            ticket.setEquipment(equipment);
+        }
         ticket.setTitle(title);
         ticket.setDescription(description);
         return detailAfterChange(ticket, actor);
@@ -269,6 +282,10 @@ public class TicketService {
 
     private Priority priority(PriorityCode code) {
         return priorityRepository.findByCode(code).orElseThrow(() -> new ResourceNotFoundException("Priorité", code));
+    }
+
+    private static String code(Equipment equipment) {
+        return equipment == null ? null : equipment.getInventoryCode() + " – " + equipment.getName();
     }
 
     private static String name(TicketSubCategory subcategory) {

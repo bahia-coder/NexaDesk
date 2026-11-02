@@ -42,6 +42,9 @@ Décisions prises pendant le développement, qui affinent la conception ci-dessu
 | Pause SLA | Pendant `PENDING` et après réouverture | Pendant `PENDING`, `RESOLVED` et `CLOSED` ; à la reprise, l'échéance est décalée du temps ouvré de pause | Une seule règle couvre l'attente, le refus de résolution et la réouverture |
 | Fuseau horaire | Dans le calendrier ouvré (table) | Configuration de déploiement (`APP_TIMEZONE`) ; la table garde horaires et jours ouvrés | Le fuseau sert aussi aux années des références et à l'affichage |
 | API SLA | `/api/sla/configurations` | `/api/sla/rules`, `/calendar`, `/holidays`, `/preview` | Vocabulaire plus clair (« règle ») |
+| Équipements partagés | « En service » = affecté à un utilisateur | `IN_USE` sans titulaire = matériel partagé à un emplacement (imprimante, serveur) ; emplacement obligatoire | Une imprimante d'étage n'appartient à personne |
+| RM-14 | L'employé choisit parmi ses équipements | Ses équipements **et** le matériel partagé ; technicien et admin : tout le parc actif (`/api/equipment/selectable`) | L'employé doit pouvoir signaler une panne d'imprimante |
+| Code d'inventaire | Non précisé | Séquence PostgreSQL `equipment_code_seq` (`EQ-0001`) | Sûre en concurrence, jamais réutilisée |
 | Alertes SLA | Une par seuil | Une par seuil, réarmée si une reprise repousse l'échéance dans le futur ; indicateurs posés par `UPDATE` ciblé, sans incrémenter `@Version` | Pas de conflit `409` avec un technicien qui modifie le ticket au même moment |
 
 ## Points à valider

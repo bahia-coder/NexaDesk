@@ -23,10 +23,10 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     @EntityGraph(attributePaths = {"priority", "category", "requester", "assignee"})
     Page<Ticket> findAll(Specification<Ticket> spec, @NonNull Pageable pageable);
 
-    @EntityGraph(attributePaths = {"priority", "category", "subcategory", "requester", "assignee"})
+    @EntityGraph(attributePaths = {"priority", "category", "subcategory", "requester", "assignee", "equipment"})
     Optional<Ticket> findWithDetailsById(Long id);
 
-    @EntityGraph(attributePaths = {"priority", "category", "subcategory", "requester", "assignee"})
+    @EntityGraph(attributePaths = {"priority", "category", "subcategory", "requester", "assignee", "equipment"})
     Optional<Ticket> findWithDetailsByReference(String reference);
 
     /** Tickets the SLA monitor must look at: running clock, deadline not yet reported as breached. */
@@ -51,6 +51,10 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     List<Ticket> findByStatusAndResolvedAtBefore(TicketStatus status, Instant resolvedBefore);
 
     boolean existsByTitle(String title);
+
+    /** Incident history of a device. */
+    @EntityGraph(attributePaths = {"priority", "category", "requester", "assignee"})
+    List<Ticket> findByEquipment_IdOrderByCreatedAtDesc(Long equipmentId);
 
     @EntityGraph(attributePaths = {"priority", "category", "requester", "assignee"})
     List<Ticket> findByCreatedAtAfterOrderByCreatedAtAsc(Instant createdAfter);

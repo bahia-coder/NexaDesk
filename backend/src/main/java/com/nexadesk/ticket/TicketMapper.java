@@ -3,6 +3,7 @@ package com.nexadesk.ticket;
 import com.nexadesk.category.CategoryMapper;
 import com.nexadesk.category.Priority;
 import com.nexadesk.category.TicketSubCategory;
+import com.nexadesk.equipment.dto.EquipmentDtos.EquipmentRefDto;
 import com.nexadesk.ticket.attachment.TicketAttachment;
 import com.nexadesk.ticket.comment.TicketComment;
 import com.nexadesk.ticket.dto.TicketDtos.AttachmentDto;
@@ -39,7 +40,9 @@ public class TicketMapper {
         return new TicketDetailDto(t.getId(), t.getReference(), t.getType(), t.getTitle(), t.getDescription(),
                 t.getStatus(), t.getImpact(), t.getUrgency(), priority(t.getPriority()),
                 categoryMapper.toRef(t.getCategory()), subcategory(t.getSubcategory()), user(t.getRequester()),
-                user(t.getAssignee()), t.getPendingReason(), t.getRejectionReason(), t.getResolution(),
+                user(t.getAssignee()), EquipmentRefDto.from(t.getEquipment()), t.getPendingReason(),
+                t.getRejectionReason(),
+                t.getResolution(),
                 t.getResolvedAt(), t.getClosedAt(), t.getReopenCount(), ticketSla.view(t), t.getVersion(),
                 t.getCreatedAt(), t.getUpdatedAt(), feedback(feedback), actions);
     }

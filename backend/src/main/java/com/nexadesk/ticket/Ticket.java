@@ -5,6 +5,7 @@ import com.nexadesk.category.Priority;
 import com.nexadesk.category.TicketCategory;
 import com.nexadesk.category.TicketSubCategory;
 import com.nexadesk.common.BaseEntity;
+import com.nexadesk.equipment.Equipment;
 import com.nexadesk.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -77,6 +78,11 @@ public class Ticket extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignee_id")
     private User assignee;
+
+    /** The device concerned, if any (RM-14). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "equipment_id")
+    private Equipment equipment;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "pending_reason", length = 20)

@@ -23,6 +23,7 @@ NexaDesk/
 | Java (JDK) | 21 |
 | Node.js | 22.12+ (Angular 21) |
 | npm | 10.9.3+ ou 11 (npm 10.9.2 a un bug d'installation : `Cannot read properties of null (reading 'edgesOut')`) |
+| Mémoire | Les JVM de Maven et des tests sont plafonnées (`backend/.mvn/jvm.config`, `argLine` de Surefire) pour tourner sur une machine de 8 Go avec Docker |
 | Docker Desktop | avec WSL 2 fonctionnel sous Windows |
 
 ## Démarrage en développement
@@ -80,7 +81,7 @@ Valeurs de test uniquement, sans aucune donnée réelle derrière.
 | Technicien | `tech.reseau@nexadesk.test` (et 4 autres `tech.*`) | `Demo@Tech2026` |
 | Employé | `employe@nexadesk.test` (et 14 autres) | `Demo@User2026` |
 
-Le profil `demo` crée aussi 8 catégories, les jours fériés français 2026-2027 et **48 tickets** sur six mois (commentaires, interventions, historiques, évaluations). Les dates sont relatives au démarrage : la file contient toujours des tickets en retard, à risque et en attente, quel que soit le jour de la démonstration.
+Le profil `demo` crée aussi 8 catégories, 10 équipements (reliés aux tickets concernés), les jours fériés français 2026-2027 et **48 tickets** sur six mois (commentaires, interventions, historiques, évaluations). Les dates sont relatives au démarrage : la file contient toujours des tickets en retard, à risque et en attente, quel que soit le jour de la démonstration.
 
 ## SLA
 

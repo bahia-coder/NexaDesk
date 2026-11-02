@@ -180,7 +180,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off</argLine>
+                    <!-- Bounded heap + serial GC: the test JVM stays small on modest machines and CI runners. -->
+                    <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off -Xmx768m -XX:+UseSerialGC</argLine>
                 </configuration>
             </plugin>
             <plugin>

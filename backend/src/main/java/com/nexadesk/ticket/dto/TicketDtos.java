@@ -3,6 +3,7 @@ package com.nexadesk.ticket.dto;
 import com.nexadesk.category.Level;
 import com.nexadesk.category.PriorityCode;
 import com.nexadesk.category.dto.CategoryDtos.CategoryRefDto;
+import com.nexadesk.equipment.dto.EquipmentDtos.EquipmentRefDto;
 import com.nexadesk.ticket.PendingReason;
 import com.nexadesk.ticket.TicketAction;
 import com.nexadesk.ticket.TicketSla;
@@ -49,7 +50,8 @@ public final class TicketDtos {
     public record TicketDetailDto(Long id, String reference, TicketType type, String title, String description,
                                   TicketStatus status, Level impact, Level urgency, PriorityRefDto priority,
                                   CategoryRefDto category, SubCategoryRefDto subcategory, UserRefDto requester,
-                                  UserRefDto assignee, PendingReason pendingReason, String rejectionReason,
+                                  UserRefDto assignee, EquipmentRefDto equipment, PendingReason pendingReason,
+                                  String rejectionReason,
                                   String resolution, Instant resolvedAt, Instant closedAt, int reopenCount,
                                   TicketSla.View sla, int version, Instant createdAt, Instant updatedAt,
                                   FeedbackDto feedback, Set<TicketAction> availableActions) {
@@ -100,15 +102,21 @@ public final class TicketDtos {
             @NotNull(message = "L'impact est obligatoire.") Level impact,
             @NotNull(message = "L'urgence est obligatoire.") Level urgency,
             /* Technicians and admins may open a ticket on behalf of an employee. */
-            Long requesterId) {
+            Long requesterId,
+            /* Optional device concerned; an employee may pick their own or a shared one (RM-14). */
+            Long equipmentId) {
     }
 
-    /** {@code version} enables optimistic locking: an edit based on a stale copy is rejected (409). */
+    /**
+     * {@code version} enables optimistic locking: an edit based on a stale copy is rejected (409).
+     * {@code equipmentId} is the full new value: null means "no device".
+     */
     public record UpdateTicketRequest(
             @NotBlank @Size(min = 5, max = 150, message = "Le titre doit contenir entre 5 et 150 caractères.")
             String title,
             @NotBlank @Size(min = 10, max = 5000, message = "La description doit contenir entre 10 et 5000 caractères.")
             String description,
+            Long equipmentId,
             @NotNull Integer version) {
     }
 
