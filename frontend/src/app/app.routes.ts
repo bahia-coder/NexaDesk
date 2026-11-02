@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-import { authGuard, guestGuard, passwordChangedGuard } from './core/auth/auth.guards';
+import { authGuard, guestGuard, passwordChangedGuard, roleGuard } from './core/auth/auth.guards';
 
 /**
  * Development-only pages. `ngDevMode` is replaced by `false` at production build time, so these routes and their
@@ -79,6 +79,15 @@ export const routes: Routes = [
         path: 'tickets',
         loadChildren: () =>
           import('./features/tickets/tickets.routes').then((m) => m.TICKET_ROUTES),
+      },
+      {
+        path: 'interventions',
+        canMatch: [roleGuard('TECHNICIAN', 'ADMIN')],
+        loadComponent: () =>
+          import('./features/interventions/my-interventions.page').then(
+            (m) => m.MyInterventionsPage,
+          ),
+        title: 'NexaDesk · Mes interventions',
       },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],

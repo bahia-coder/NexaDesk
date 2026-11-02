@@ -66,7 +66,8 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
       items: [
         DASHBOARD,
         { label: 'Tickets', path: 'tickets', icon: Ticket },
-        { label: 'Interventions', path: 'interventions', icon: Wrench },
+        // The API lists the signed-in user's own interventions (an admin's too).
+        { label: 'Mes interventions', path: 'interventions', icon: Wrench },
         { label: 'Équipements', path: 'equipment', icon: Monitor },
         { label: 'Rapports', path: 'reports', icon: ChartColumn },
       ],

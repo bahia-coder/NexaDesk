@@ -32,8 +32,10 @@ import { TicketAttachmentsComponent } from './ticket-attachments.component';
 import { TicketConversationComponent } from './ticket-conversation.component';
 import { TicketFeedbackComponent } from './ticket-feedback.component';
 import { TicketHistoryComponent } from './ticket-history.component';
+import { TicketInterventionsComponent } from '../../interventions/ticket-interventions.component';
+import { AuthService } from '../../../core/auth/auth.service';
 
-type Tab = 'conversation' | 'attachments' | 'history';
+type Tab = 'conversation' | 'interventions' | 'attachments' | 'history';
 
 /** Main action first (filled button), the others secondary; destructive ones last. */
 const PRIMARY: TicketAction[] = ['TAKE', 'START', 'RESUME', 'RESOLVE', 'CONFIRM_RESOLUTION'];
@@ -55,6 +57,7 @@ const PRIMARY: TicketAction[] = ['TAKE', 'START', 'RESUME', 'RESOLVE', 'CONFIRM_
     TicketConversationComponent,
     TicketFeedbackComponent,
     TicketHistoryComponent,
+    TicketInterventionsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './ticket-detail.page.html',
@@ -65,6 +68,10 @@ export class TicketDetailPage {
   private readonly actions = inject(TicketActionsService);
   private readonly toasts = inject(ToastService);
   private readonly clock = inject(ClockService);
+  private readonly auth = inject(AuthService);
+
+  /** The work log is for support staff (the API refuses it to employees). */
+  protected readonly staff = computed(() => this.auth.role() !== 'EMPLOYEE');
 
   /** Route parameter (component input binding). */
   readonly id = input.required<string>();
@@ -175,6 +182,11 @@ export class TicketDetailPage {
   protected onPosted(): void {
     this.related.update((n) => n + 1);
     this.api.get(this.ticketId()).subscribe((updated) => this.ticket.set(updated));
+  }
+
+  /** New work: history entries, and possibly the solution offered when resolving. */
+  protected onInterventionsChanged(): void {
+    this.related.update((n) => n + 1);
   }
 
   protected onAttachmentsChanged(): void {

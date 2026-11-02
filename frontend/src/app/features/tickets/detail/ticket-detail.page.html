@@ -123,6 +123,17 @@
                 <span class="tab__count">{{ list.length }}</span>
               }
             </button>
+            @if (staff()) {
+              <button
+                type="button"
+                role="tab"
+                class="tab"
+                [attr.aria-selected]="tab() === 'interventions'"
+                (click)="tab.set('interventions')"
+              >
+                Interventions
+              </button>
+            }
             <button
               type="button"
               role="tab"
@@ -164,6 +175,9 @@
                 } @else {
                   <nx-skeleton height="40px" [lines]="2" />
                 }
+              }
+              @case ('interventions') {
+                <nx-ticket-interventions [ticket]="t" (changed)="onInterventionsChanged()" />
               }
               @case ('history') {
                 @if (dataOf(history()); as list) {
