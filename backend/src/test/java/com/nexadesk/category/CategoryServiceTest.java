@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.category.dto.CategoryDtos.CategoryDto;
 import com.nexadesk.category.dto.CategoryDtos.CategoryRequest;
 import com.nexadesk.category.dto.CategoryDtos.SubCategoryDto;
@@ -32,13 +33,15 @@ class CategoryServiceTest {
     private TicketSubCategoryRepository subCategoryRepository;
     @Mock
     private TicketRepository ticketRepository;
+    @Mock
+    private AuditService audit;
 
     private CategoryService service;
 
     @BeforeEach
     void setUp() {
         service = new CategoryService(categoryRepository, subCategoryRepository, ticketRepository,
-                new CategoryMapperImpl());
+                new CategoryMapperImpl(), audit);
     }
 
     private static TicketCategory category(long id, String name, boolean active) {

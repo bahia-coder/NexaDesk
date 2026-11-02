@@ -1,0 +1,40 @@
+package com.nexadesk.audit;
+
+/** Audited actions, grouped by the entity they concern. */
+public enum AuditAction {
+    // Authentication
+    LOGIN_SUCCESS,
+    LOGIN_FAILURE,
+    ACCOUNT_LOCKED,
+    PASSWORD_CHANGED,
+    // User administration
+    USER_CREATED,
+    USER_UPDATED,
+    USER_ROLE_CHANGED,
+    USER_DEACTIVATED,
+    USER_ACTIVATED,
+    USER_PASSWORD_RESET,
+    USER_SPECIALTIES_CHANGED,
+    // Tickets
+    TICKET_CREATED,
+    TICKET_UPDATED,
+    TICKET_RECLASSIFIED,
+    TICKET_ASSIGNED,
+    TICKET_STATUS_CHANGED,
+    TICKET_COMMENTED,
+    // Configuration
+    CATEGORY_CREATED,
+    CATEGORY_UPDATED,
+    CATEGORY_STATUS_CHANGED,
+    PRIORITY_UPDATED,
+    SLA_RULE_UPDATED,
+    SLA_CALENDAR_UPDATED,
+    HOLIDAY_ADDED,
+    HOLIDAY_REMOVED,
+    // Equipment
+    EQUIPMENT_CREATED,
+    EQUIPMENT_UPDATED,
+    EQUIPMENT_ASSIGNED,
+    EQUIPMENT_STATUS_CHANGED,
+    EQUIPMENT_RETIRED
+}

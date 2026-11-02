@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.auth.AuthService;
 import com.nexadesk.auth.RefreshTokenService;
 import com.nexadesk.exception.ErrorCode;
@@ -35,6 +36,8 @@ class ProfileServiceTest {
     private RefreshTokenService refreshTokenService;
     @Mock
     private AuthService authService;
+    @Mock
+    private AuditService audit;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
     private ProfileService service;
@@ -43,7 +46,7 @@ class ProfileServiceTest {
     @BeforeEach
     void setUp() {
         service = new ProfileService(userRepository, passwordEncoder, refreshTokenService, authService,
-                new UserMapperImpl());
+                new UserMapperImpl(), audit);
         user = TestUsers.user(USER_ID, "me@nexadesk.test", RoleCode.EMPLOYEE, passwordEncoder.encode(CURRENT));
         when(userRepository.findWithRoleById(USER_ID)).thenReturn(Optional.of(user));
     }

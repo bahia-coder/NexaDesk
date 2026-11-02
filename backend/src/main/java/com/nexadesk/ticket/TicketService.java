@@ -1,5 +1,7 @@
 package com.nexadesk.ticket;
 
+import com.nexadesk.audit.AuditAction;
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.category.Priority;
 import com.nexadesk.category.PriorityCode;
 import com.nexadesk.category.PriorityMatrix;
@@ -65,6 +67,7 @@ public class TicketService {
     private final TicketSla ticketSla;
     private final EquipmentSelector equipmentSelector;
     private final ApplicationEventPublisher events;
+    private final AuditService audit;
     private final Clock clock;
     private final ZoneId zone;
 
@@ -73,8 +76,8 @@ public class TicketService {
                          UserRepository userRepository, TicketFeedbackRepository feedbackRepository,
                          TicketReferenceGenerator referenceGenerator, TicketHistoryRecorder history,
                          TicketAccess access, TicketPolicy policy, TicketMapper mapper, TicketSla ticketSla,
-                         EquipmentSelector equipmentSelector, ApplicationEventPublisher events, Clock clock,
-                         @Value("${nexadesk.time-zone}") ZoneId zone) {
+                         EquipmentSelector equipmentSelector, ApplicationEventPublisher events, AuditService audit,
+                         Clock clock, @Value("${nexadesk.time-zone}") ZoneId zone) {
         this.ticketRepository = ticketRepository;
         this.categoryRepository = categoryRepository;
         this.subCategoryRepository = subCategoryRepository;
@@ -89,6 +92,7 @@ public class TicketService {
         this.ticketSla = ticketSla;
         this.equipmentSelector = equipmentSelector;
         this.events = events;
+        this.audit = audit;
         this.clock = clock;
         this.zone = zone;
     }
@@ -187,6 +191,8 @@ public class TicketService {
         }
         ticket.setTitle(title);
         ticket.setDescription(description);
+        audit.record(AuditAction.TICKET_UPDATED, "TICKET", ticket.getReference(),
+                "Modification du ticket " + ticket.getReference());
         return detailAfterChange(ticket, actor);
     }
 
@@ -211,6 +217,10 @@ public class TicketService {
                 name(subcategory), reason);
         history.change(ticket, actor, HistoryAction.PRIORITY_CHANGED, "priority", ticket.getPriority().getCode(),
                 priority.getCode(), reason);
+        audit.record(AuditAction.TICKET_RECLASSIFIED, "TICKET", ticket.getReference(),
+                "Reclassement du ticket " + ticket.getReference() + " : " + reason,
+                AuditService.values("category", ticket.getCategory().getName(), "priority", ticket.getPriority().getCode()),
+                AuditService.values("category", category.getName(), "priority", priority.getCode()));
         boolean priorityChanged = ticket.getPriority().getCode() != priority.getCode();
         ticket.setCategory(category);
         ticket.setSubcategory(subcategory);

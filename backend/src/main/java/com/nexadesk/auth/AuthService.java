@@ -1,5 +1,7 @@
 package com.nexadesk.auth;
 
+import com.nexadesk.audit.AuditAction;
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.exception.BusinessException;
 import com.nexadesk.exception.ErrorCode;
 import com.nexadesk.security.JwtService;
@@ -30,20 +32,24 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final UserMapper userMapper;
     private final SecurityProperties properties;
+    private final AuditService audit;
     private final Clock clock;
+
+    private static final String AUDITED = "USER";
 
     /** Compared against when the e-mail is unknown, so response time does not reveal which accounts exist. */
     private final String dummyPasswordHash;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
                        RefreshTokenService refreshTokenService, UserMapper userMapper,
-                       SecurityProperties properties, Clock clock) {
+                       SecurityProperties properties, AuditService audit, Clock clock) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.userMapper = userMapper;
         this.properties = properties;
+        this.audit = audit;
         this.clock = clock;
         this.dummyPasswordHash = passwordEncoder.encode("nexadesk-timing-equalizer");
     }
@@ -55,27 +61,38 @@ public class AuthService {
     @Transactional(noRollbackFor = BusinessException.class)
     public AuthResult login(String email, String password) {
         Instant now = clock.instant();
-        User user = userRepository.findByEmail(User.normalizeEmail(email)).orElse(null);
+        String normalized = User.normalizeEmail(email);
+        User user = userRepository.findByEmail(normalized).orElse(null);
         if (user == null) {
             passwordEncoder.matches(password, dummyPasswordHash);
+            audit.recordFor(null, normalized, AuditAction.LOGIN_FAILURE, AUDITED, null, "Échec de connexion : compte inconnu");
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
         if (user.isLockedAt(now)) {
+            audit.recordFor(user, normalized, AuditAction.LOGIN_FAILURE, AUDITED, user.getId(),
+                    "Connexion refusée : compte verrouillé");
             throw new BusinessException(ErrorCode.ACCOUNT_LOCKED);
         }
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             SecurityProperties.Lockout lockout = properties.lockout();
             if (user.registerFailedLogin(lockout.maxAttempts(), now.plus(lockout.duration()))) {
                 log.warn("Account {} locked after {} failed login attempts", user.getId(), lockout.maxAttempts());
+                audit.recordFor(user, normalized, AuditAction.ACCOUNT_LOCKED, AUDITED, user.getId(),
+                        "Compte verrouillé après " + lockout.maxAttempts() + " échecs de connexion");
                 throw new BusinessException(ErrorCode.ACCOUNT_LOCKED);
             }
+            audit.recordFor(user, normalized, AuditAction.LOGIN_FAILURE, AUDITED, user.getId(),
+                    "Échec de connexion : mot de passe incorrect");
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
         if (!user.isActive()) {
+            audit.recordFor(user, normalized, AuditAction.LOGIN_FAILURE, AUDITED, user.getId(),
+                    "Connexion refusée : compte désactivé");
             throw new BusinessException(ErrorCode.ACCOUNT_DISABLED);
         }
 
         user.registerSuccessfulLogin(now);
+        audit.recordFor(user, normalized, AuditAction.LOGIN_SUCCESS, AUDITED, user.getId(), "Connexion réussie");
         return startSession(user);
     }
 

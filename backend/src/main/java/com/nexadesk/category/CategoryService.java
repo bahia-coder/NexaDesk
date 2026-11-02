@@ -1,5 +1,7 @@
 package com.nexadesk.category;
 
+import com.nexadesk.audit.AuditAction;
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.category.dto.CategoryDtos.CategoryDto;
 import com.nexadesk.category.dto.CategoryDtos.CategoryRequest;
 import com.nexadesk.category.dto.CategoryDtos.SubCategoryDto;
@@ -12,6 +14,7 @@ import com.nexadesk.ticket.TicketStatus;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +33,9 @@ public class CategoryService {
     private final TicketSubCategoryRepository subCategoryRepository;
     private final TicketRepository ticketRepository;
     private final CategoryMapper mapper;
+    private final AuditService audit;
+
+    private static final String AUDITED = "CATEGORY";
 
     /**
      * @param includeInactive admin view: also returns deactivated categories and subcategories
@@ -51,7 +57,10 @@ public class CategoryService {
         }
         TicketCategory category = new TicketCategory(name, blankToNull(request.description()), icon(request.icon()),
                 normalizeKeywords(request.keywords()));
-        return mapper.toDto(categoryRepository.save(category));
+        categoryRepository.save(category);
+        audit.record(AuditAction.CATEGORY_CREATED, AUDITED, category.getId(), "Création de la catégorie " + name,
+                null, snapshot(category));
+        return mapper.toDto(category);
     }
 
     @Transactional
@@ -61,10 +70,13 @@ public class CategoryService {
         if (categoryRepository.existsByNameIgnoreCaseAndIdNot(name, id)) {
             throw new BusinessException(ErrorCode.DUPLICATE_NAME, "Une catégorie « " + name + " » existe déjà.");
         }
+        Map<String, Object> before = snapshot(category);
         category.setName(name);
         category.setDescription(blankToNull(request.description()));
         category.setIcon(icon(request.icon()));
         category.setKeywords(normalizeKeywords(request.keywords()));
+        audit.record(AuditAction.CATEGORY_UPDATED, AUDITED, id, "Modification de la catégorie " + name, before,
+                snapshot(category));
         return mapper.toDto(category);
     }
 
@@ -79,8 +91,17 @@ public class CategoryService {
                         + " » est utilisée par " + openTickets + " ticket(s) en cours.");
             }
         }
+        if (category.isActive() != active) {
+            audit.record(AuditAction.CATEGORY_STATUS_CHANGED, AUDITED, id,
+                    (active ? "Réactivation" : "Désactivation") + " de la catégorie " + category.getName());
+        }
         category.setActive(active);
         return mapper.toDto(category);
+    }
+
+    private static Map<String, Object> snapshot(TicketCategory c) {
+        return AuditService.values("name", c.getName(), "description", c.getDescription(), "icon", c.getIcon(),
+                "keywords", c.getKeywords());
     }
 
     @Transactional

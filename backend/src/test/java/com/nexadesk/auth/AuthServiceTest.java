@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.exception.BusinessException;
 import com.nexadesk.exception.ErrorCode;
 import com.nexadesk.security.JwtService;
@@ -43,6 +44,8 @@ class AuthServiceTest {
     private RefreshTokenService refreshTokenService;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private AuditService audit;
 
     // Real encoder (low cost factor for speed): the service's behaviour depends on actual hash comparison.
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
@@ -52,7 +55,7 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         authService = new AuthService(userRepository, passwordEncoder, jwtService, refreshTokenService, userMapper,
-                TestSecurityProperties.create(), Clock.fixed(NOW, ZoneOffset.UTC));
+                TestSecurityProperties.create(), audit, Clock.fixed(NOW, ZoneOffset.UTC));
         user = TestUsers.user(42L, EMAIL, RoleCode.EMPLOYEE, passwordEncoder.encode(PASSWORD));
     }
 

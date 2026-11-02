@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.category.CategoryMapperImpl;
 import com.nexadesk.category.TicketCategory;
 import com.nexadesk.category.TicketCategoryRepository;
@@ -30,12 +31,15 @@ class TechnicianServiceTest {
     private TicketCategoryRepository categoryRepository;
     @Mock
     private TicketRepository ticketRepository;
+    @Mock
+    private AuditService audit;
 
     private TechnicianService service;
 
     @BeforeEach
     void setUp() {
-        service = new TechnicianService(userRepository, categoryRepository, ticketRepository, new CategoryMapperImpl());
+        service = new TechnicianService(userRepository, categoryRepository, ticketRepository, new CategoryMapperImpl(),
+                audit);
     }
 
     private static TicketCategory category(long id, String name, boolean active) {

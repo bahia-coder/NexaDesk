@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.auth.RefreshTokenService;
 import com.nexadesk.exception.BusinessException;
 import com.nexadesk.exception.ErrorCode;
@@ -47,6 +48,8 @@ class UserAdminServiceTest {
     private RefreshTokenService refreshTokenService;
     @Mock
     private TicketRepository ticketRepository;
+    @Mock
+    private AuditService audit;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(4);
     private UserAdminService service;
@@ -54,7 +57,7 @@ class UserAdminServiceTest {
     @BeforeEach
     void setUp() {
         service = new UserAdminService(userRepository, roleRepository, departmentRepository, refreshTokenService,
-                ticketRepository, passwordEncoder, new TemporaryPasswordGenerator(), new UserMapperImpl());
+                ticketRepository, passwordEncoder, new TemporaryPasswordGenerator(), new UserMapperImpl(), audit);
     }
 
     @Test

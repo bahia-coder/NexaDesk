@@ -1,5 +1,7 @@
 package com.nexadesk.user;
 
+import com.nexadesk.audit.AuditAction;
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.category.CategoryMapper;
 import com.nexadesk.category.TicketCategory;
 import com.nexadesk.category.TicketCategoryRepository;
@@ -30,6 +32,7 @@ public class TechnicianService {
     private final TicketCategoryRepository categoryRepository;
     private final TicketRepository ticketRepository;
     private final CategoryMapper categoryMapper;
+    private final AuditService audit;
 
     @Transactional(readOnly = true)
     public List<TechnicianDto> technicians(Long categoryId) {
@@ -74,8 +77,13 @@ public class TechnicianService {
                         "La catégorie « " + category.getName() + " » est désactivée.");
             }
         }
+        List<String> before = sortedRefs(user.getSpecialties()).stream().map(CategoryRefDto::name).toList();
         user.replaceSpecialties(categories);
-        return sortedRefs(user.getSpecialties());
+        List<CategoryRefDto> after = sortedRefs(user.getSpecialties());
+        audit.record(AuditAction.USER_SPECIALTIES_CHANGED, "USER", userId,
+                "Spécialités de " + user.getEmail() + " modifiées", AuditService.values("specialties", before),
+                AuditService.values("specialties", after.stream().map(CategoryRefDto::name).toList()));
+        return after;
     }
 
     private User find(Long userId) {

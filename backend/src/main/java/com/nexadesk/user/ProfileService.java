@@ -1,5 +1,7 @@
 package com.nexadesk.user;
 
+import com.nexadesk.audit.AuditAction;
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.auth.AuthService;
 import com.nexadesk.auth.RefreshTokenService;
 import com.nexadesk.exception.BusinessException;
@@ -24,6 +26,7 @@ public class ProfileService {
     private final RefreshTokenService refreshTokenService;
     private final AuthService authService;
     private final UserMapper mapper;
+    private final AuditService audit;
 
     @Transactional(readOnly = true)
     public ProfileDto get(Long userId) {
@@ -58,6 +61,7 @@ public class ProfileService {
         user.setMustChangePassword(false);
         refreshTokenService.revokeAllForUser(userId);
         log.info("User {} changed their password", userId);
+        audit.record(AuditAction.PASSWORD_CHANGED, "USER", userId, "Changement de mot de passe par l'utilisateur");
         return authService.startSession(user);
     }
 

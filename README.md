@@ -90,6 +90,12 @@ Le profil `demo` crée aussi 8 catégories, 10 équipements (reliés aux tickets
 - États exposés sur chaque ticket : `ON_TRACK`, `AT_RISK` (seuil de 75 % configurable), `BREACHED`, `PAUSED`, `MET`, `MISSED`.
 - Une tâche planifiée (toutes les minutes) signale une fois chaque passage à risque ou en retard, et clôt les tickets résolus restés sans réponse 72 h ouvrées.
 
+## Dashboards, rapports et audit
+
+- **Dashboards par rôle** (`/api/dashboard/admin|technician|employee`). Tous les chiffres sont calculés en SQL agrégé sur PostgreSQL, avec une seule définition par indicateur (`AnalyticsQueries`) : indicateurs avec tendance par rapport à la période précédente, évolution, répartitions, performance des techniciens, respect du SLA, satisfaction et activité récente.
+- **Rapport filtrable** (`/api/reports/summary` : période, catégorie, technicien ; un technicien ne voit que ses chiffres), avec export **Excel** (Apache POI, 6 feuilles) et **PDF** (OpenPDF, police intégrée : aucune dépendance aux polices du serveur).
+- **Journal d'audit** (`/api/audit`, admin) : connexions réussies et échouées (avec le motif), comptes, rôles, configuration (catégories, priorités, SLA, jours fériés), équipements et actions clés sur les tickets. Chaque entrée contient l'auteur, l'adresse IP, le `traceId`, et les valeurs avant et après en JSONB. L'audit s'écrit dans la transaction de l'action : une action annulée ne laisse pas de trace.
+
 ## Notifications temps réel
 
 - Les services publient des événements de domaine (`TicketEvent`). Un écouteur `@TransactionalEventListener(AFTER_COMMIT)` les transforme en notifications : jamais de notification pour une action annulée.

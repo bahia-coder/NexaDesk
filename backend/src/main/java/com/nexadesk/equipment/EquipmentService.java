@@ -1,5 +1,7 @@
 package com.nexadesk.equipment;
 
+import com.nexadesk.audit.AuditAction;
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.common.web.PageResponse;
 import com.nexadesk.equipment.dto.EquipmentDtos.AssignmentDto;
 import com.nexadesk.equipment.dto.EquipmentDtos.EquipmentDto;
@@ -23,6 +25,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
@@ -46,13 +49,16 @@ public class EquipmentService {
     private final TicketPolicy ticketPolicy;
     private final TicketMapper ticketMapper;
     private final JdbcClient jdbc;
+    private final AuditService audit;
     private final Clock clock;
     private final ZoneId zone;
 
+    private static final String AUDITED = "EQUIPMENT";
+
     public EquipmentService(EquipmentRepository repository, EquipmentAssignmentRepository assignmentRepository,
                             UserRepository userRepository, TicketRepository ticketRepository, TicketAccess access,
-                            TicketPolicy ticketPolicy, TicketMapper ticketMapper, JdbcClient jdbc, Clock clock,
-                            @Value("${nexadesk.time-zone}") ZoneId zone) {
+                            TicketPolicy ticketPolicy, TicketMapper ticketMapper, JdbcClient jdbc, AuditService audit,
+                            Clock clock, @Value("${nexadesk.time-zone}") ZoneId zone) {
         this.repository = repository;
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
@@ -61,6 +67,7 @@ public class EquipmentService {
         this.ticketPolicy = ticketPolicy;
         this.ticketMapper = ticketMapper;
         this.jdbc = jdbc;
+        this.audit = audit;
         this.clock = clock;
         this.zone = zone;
     }
@@ -106,7 +113,10 @@ public class EquipmentService {
         long next = jdbc.sql("select nextval('equipment_code_seq')").query(Long.class).single();
         Equipment equipment = new Equipment("EQ-%04d".formatted(next), request.name().trim(), request.type());
         apply(equipment, request, serial);
-        return toDto(repository.save(equipment));
+        repository.save(equipment);
+        audit.record(AuditAction.EQUIPMENT_CREATED, AUDITED, equipment.getInventoryCode(),
+                "Ajout de " + equipment.getInventoryCode() + " – " + equipment.getName(), null, snapshot(equipment));
+        return toDto(equipment);
     }
 
     @Transactional
@@ -117,10 +127,13 @@ public class EquipmentService {
         if (serial != null && repository.existsBySerialNumberAndIdNot(serial, id)) {
             throw new BusinessException(ErrorCode.SERIAL_NUMBER_ALREADY_USED);
         }
+        Map<String, Object> before = snapshot(equipment);
         equipment.setName(request.name().trim());
         equipment.setType(request.type());
         apply(equipment, request, serial);
         repository.flush();
+        audit.record(AuditAction.EQUIPMENT_UPDATED, AUDITED, equipment.getInventoryCode(),
+                "Modification de " + equipment.getInventoryCode(), before, snapshot(equipment));
         return toDto(equipment);
     }
 
@@ -136,6 +149,7 @@ public class EquipmentService {
         if (userId != null && equipment.getAssignedUser() != null && equipment.getAssignedUser().getId().equals(userId)) {
             return toDto(equipment);
         }
+        String previousHolder = holderEmail(equipment);
         closeOpenAssignment(equipment, now);
         if (userId == null) {
             equipment.setAssignedUser(null);
@@ -148,6 +162,9 @@ public class EquipmentService {
             assignmentRepository.save(new EquipmentAssignment(equipment, user, now));
         }
         repository.flush();
+        audit.record(AuditAction.EQUIPMENT_ASSIGNED, AUDITED, equipment.getInventoryCode(),
+                equipment.getInventoryCode() + (userId == null ? " remis en stock" : " affecté à " + holderEmail(equipment)),
+                AuditService.values("holder", previousHolder), AuditService.values("holder", holderEmail(equipment)));
         return toDto(equipment);
     }
 
@@ -181,6 +198,9 @@ public class EquipmentService {
         }
         equipment.setStatus(target);
         repository.flush();
+        audit.record(AuditAction.EQUIPMENT_STATUS_CHANGED, AUDITED, equipment.getInventoryCode(),
+                equipment.getInventoryCode() + " : " + current + " → " + target,
+                AuditService.values("status", current), AuditService.values("status", target));
         return toDto(equipment);
     }
 
@@ -193,7 +213,20 @@ public class EquipmentService {
         equipment.setStatus(EquipmentStatus.RETIRED);
         repository.flush();
         log.info("Equipment {} retired", equipment.getInventoryCode());
+        audit.record(AuditAction.EQUIPMENT_RETIRED, AUDITED, equipment.getInventoryCode(),
+                "Mise au rebut de " + equipment.getInventoryCode() + " – " + equipment.getName());
         return toDto(equipment);
+    }
+
+    private static String holderEmail(Equipment equipment) {
+        return equipment.getAssignedUser() == null ? null : equipment.getAssignedUser().getEmail();
+    }
+
+    private static Map<String, Object> snapshot(Equipment e) {
+        return AuditService.values("name", e.getName(), "type", e.getType(), "brand", e.getBrand(),
+                "model", e.getModel(), "serialNumber", e.getSerialNumber(), "location", e.getLocation(),
+                "acquisitionDate", e.getAcquisitionDate() == null ? null : e.getAcquisitionDate().toString(),
+                "warrantyEndDate", e.getWarrantyEndDate() == null ? null : e.getWarrantyEndDate().toString());
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,7 @@
 package com.nexadesk.user;
 
+import com.nexadesk.audit.AuditAction;
+import com.nexadesk.audit.AuditService;
 import com.nexadesk.auth.RefreshTokenService;
 import com.nexadesk.common.web.PageResponse;
 import com.nexadesk.exception.BusinessException;
@@ -16,6 +18,7 @@ import com.nexadesk.user.dto.UserDto;
 import com.nexadesk.user.dto.UserFilter;
 import com.nexadesk.user.password.TemporaryPasswordGenerator;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -38,6 +41,9 @@ public class UserAdminService {
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator passwordGenerator;
     private final UserMapper mapper;
+    private final AuditService audit;
+
+    private static final String AUDITED = "USER";
 
     @Transactional(readOnly = true)
     public PageResponse<UserDto> list(UserFilter filter, Pageable pageable) {
@@ -70,6 +76,8 @@ public class UserAdminService {
         user.setMustChangePassword(true);
         userRepository.save(user);
         log.info("User {} created with role {}", user.getId(), request.role());
+        audit.record(AuditAction.USER_CREATED, AUDITED, user.getId(), "Création du compte " + email, null,
+                snapshot(user));
         return new TemporaryPasswordResponse(mapper.toDto(user), temporaryPassword);
     }
 
@@ -80,12 +88,17 @@ public class UserAdminService {
         if (userRepository.existsByEmailAndIdNot(email, id)) {
             throw new BusinessException(ErrorCode.EMAIL_ALREADY_USED);
         }
+        Map<String, Object> before = snapshot(user);
         user.setEmail(email);
         user.setFirstName(request.firstName().trim());
         user.setLastName(request.lastName().trim());
         user.setJobTitle(blankToNull(request.jobTitle()));
         user.setPhone(blankToNull(request.phone()));
         user.setDepartment(department(request.departmentId()));
+        Map<String, Object> after = snapshot(user);
+        if (!before.equals(after)) {
+            audit.record(AuditAction.USER_UPDATED, AUDITED, id, "Modification du compte " + email, before, after);
+        }
         return mapper.toDto(user);
     }
 
@@ -102,6 +115,8 @@ public class UserAdminService {
         if (newRole != RoleCode.TECHNICIAN) {
             ensureNoOpenAssignedTickets(user);
         }
+        audit.record(AuditAction.USER_ROLE_CHANGED, AUDITED, id, "Rôle de " + user.getEmail() + " modifié",
+                AuditService.values("role", user.getRoleCode()), AuditService.values("role", newRole));
         user.setRole(role(newRole));
         if (newRole != RoleCode.TECHNICIAN) {
             user.replaceSpecialties(List.of());
@@ -126,6 +141,7 @@ public class UserAdminService {
         user.setActive(false);
         refreshTokenService.revokeAllForUser(user.getId());
         log.info("User {} deactivated by {}", id, actorId);
+        audit.record(AuditAction.USER_DEACTIVATED, AUDITED, id, "Désactivation du compte " + user.getEmail());
         return mapper.toDto(user);
     }
 
@@ -135,6 +151,7 @@ public class UserAdminService {
         user.setActive(true);
         user.setLockedUntil(null);
         user.setFailedLoginAttempts(0);
+        audit.record(AuditAction.USER_ACTIVATED, AUDITED, id, "Réactivation du compte " + user.getEmail());
         return mapper.toDto(user);
     }
 
@@ -149,7 +166,17 @@ public class UserAdminService {
         user.setFailedLoginAttempts(0);
         refreshTokenService.revokeAllForUser(user.getId());
         log.info("Password of user {} reset by an administrator", id);
+        audit.record(AuditAction.USER_PASSWORD_RESET, AUDITED, id,
+                "Réinitialisation du mot de passe de " + user.getEmail());
         return new TemporaryPasswordResponse(mapper.toDto(user), temporaryPassword);
+    }
+
+    /** Audited identity fields (never the password hash). */
+    private static Map<String, Object> snapshot(User user) {
+        return AuditService.values("email", user.getEmail(), "firstName", user.getFirstName(),
+                "lastName", user.getLastName(), "jobTitle", user.getJobTitle(), "phone", user.getPhone(),
+                "department", user.getDepartment() == null ? null : user.getDepartment().getName(),
+                "role", user.getRoleCode());
     }
 
     @Transactional(readOnly = true)
