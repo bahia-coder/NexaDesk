@@ -1,2 +1,7 @@
+@use '@angular/cdk' as cdk;
 @use 'tokens';
 @use 'base';
+@use 'components';
+
+// Positioning layer of CDK overlays (dialogs, menus).
+@include cdk.overlay();

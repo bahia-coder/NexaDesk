@@ -1,0 +1,169 @@
+<main class="ds">
+  <header class="ds__header">
+    <div>
+      <h1 class="page-title">Design system</h1>
+      <p class="muted">Page de développement : composants et états, en thème clair et sombre.</p>
+    </div>
+    <button type="button" class="btn btn--secondary" (click)="theme.toggle()">
+      <lucide-icon [img]="theme.isDark() ? icons.Sun : icons.Moon" [size]="16" aria-hidden="true" />
+      Thème {{ theme.isDark() ? 'clair' : 'sombre' }}
+    </button>
+  </header>
+
+  <section class="card ds__section">
+    <h2 class="card__title">Boutons</h2>
+    <div class="ds__row">
+      <button type="button" class="btn btn--primary">Principal</button>
+      <button type="button" class="btn btn--secondary">Secondaire</button>
+      <button type="button" class="btn btn--ghost">Discret</button>
+      <button type="button" class="btn btn--danger">Supprimer</button>
+      <button type="button" class="btn btn--primary" disabled>Désactivé</button>
+      <button
+        type="button"
+        class="btn btn--primary"
+        [disabled]="loading()"
+        (click)="simulateLoading()"
+      >
+        @if (loading()) {
+          <nx-spinner />
+        }
+        Enregistrer
+      </button>
+      <button type="button" class="btn btn--primary btn--sm">Petit</button>
+      <button type="button" class="btn btn--secondary btn--icon" aria-label="Exemple d'icône seule">
+        <lucide-icon [img]="icons.Clock" [size]="16" aria-hidden="true" />
+      </button>
+    </div>
+  </section>
+
+  <section class="card ds__section">
+    <h2 class="card__title">Statuts et priorités</h2>
+    <div class="ds__row">
+      @for (status of statuses; track status) {
+        <nx-status-badge [status]="status" />
+      }
+    </div>
+    <div class="ds__row">
+      @for (priority of priorities; track priority) {
+        <nx-priority-badge [code]="priority" />
+      }
+    </div>
+  </section>
+
+  <section class="card ds__section">
+    <h2 class="card__title">Indicateur SLA</h2>
+    <div class="ds__grid">
+      @for (item of slas; track item.label) {
+        <div class="ds__cell">
+          <span class="field__label">{{ item.label }}</span>
+          <nx-sla-indicator [sla]="item.view" />
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="ds__kpis">
+    <nx-stat-card
+      label="Tickets créés"
+      value="248"
+      [icon]="icons.Ticket"
+      tone="indigo"
+      [change]="12.4"
+      [loading]="loading()"
+    />
+    <nx-stat-card
+      label="En retard"
+      value="6"
+      [icon]="icons.TriangleAlert"
+      tone="danger"
+      [change]="20"
+      goodWhen="down"
+      [loading]="loading()"
+    />
+    <nx-stat-card
+      label="Respect SLA"
+      value="91 %"
+      [icon]="icons.CircleCheck"
+      tone="success"
+      [change]="-3"
+      changeUnit="pts"
+      [loading]="loading()"
+    />
+    <nx-stat-card
+      label="Temps moyen"
+      value="5,2 h"
+      [icon]="icons.Clock"
+      tone="blue"
+      hint="Sur les tickets résolus"
+      [loading]="loading()"
+    />
+  </section>
+
+  <section class="card ds__section">
+    <h2 class="card__title">Formulaire</h2>
+    <div class="ds__grid">
+      <label class="field">
+        <span class="field__label">Titre</span>
+        <input class="input" placeholder="Ex. : Imprimante bloquée" />
+        <span class="field__hint">Entre 5 et 150 caractères.</span>
+      </label>
+      <label class="field">
+        <span class="field__label">Catégorie</span>
+        <select class="select">
+          <option>Impression</option>
+          <option>Réseau & VPN</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field__label">Champ en erreur</span>
+        <input class="input" aria-invalid="true" value="abc" />
+        <span class="field__error">Le titre doit contenir entre 5 et 150 caractères.</span>
+      </label>
+      <label class="checkbox"><input type="checkbox" checked /> Note interne</label>
+    </div>
+  </section>
+
+  <section class="card ds__section">
+    <h2 class="card__title">Retours utilisateur</h2>
+    <div class="ds__row">
+      <button type="button" class="btn btn--secondary" (click)="toast('success')">
+        Toast succès
+      </button>
+      <button type="button" class="btn btn--secondary" (click)="toast('info')">Toast info</button>
+      <button type="button" class="btn btn--secondary" (click)="toast('warning')">
+        Toast alerte
+      </button>
+      <button type="button" class="btn btn--secondary" (click)="toast('error')">
+        Toast erreur
+      </button>
+      <button type="button" class="btn btn--secondary" (click)="confirm(false)">
+        Confirmation
+      </button>
+      <button type="button" class="btn btn--secondary" (click)="confirm(true)">
+        Confirmation avec motif
+      </button>
+      <span class="muted">Dernière confirmation : {{ lastConfirm() }}</span>
+    </div>
+  </section>
+
+  <section class="ds__split">
+    <div class="card ds__section">
+      <h2 class="card__title">Chargement</h2>
+      <nx-skeleton height="16px" [lines]="3" />
+      <div class="ds__row">
+        <nx-avatar name="Amina Benali" color="#4f46e5" />
+        <nx-avatar name="Karim Belhadj" color="#0891b2" [size]="40" />
+        <nx-avatar name="Sara" color="#db2777" [size]="24" />
+      </div>
+    </div>
+    <div class="card">
+      <nx-empty-state
+        title="Aucun ticket"
+        description="Vous n'avez aucun ticket en cours. Signalez un problème, le support vous répond rapidement."
+        [icon]="icons.Inbox"
+      >
+        <button type="button" class="btn btn--primary">Créer un ticket</button>
+      </nx-empty-state>
+    </div>
+  </section>
+</main>

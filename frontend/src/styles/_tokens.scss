@@ -28,6 +28,8 @@
   --color-danger: #dc2626;
   --color-danger-subtle: #fee2e2;
   --color-danger-text: #b91c1c;
+  // Filled destructive buttons: white text needs a deep red in both themes (contrast ≥ 4.5:1).
+  --color-danger-solid: #dc2626;
   --color-info: #0284c7;
   --color-info-subtle: #e0f2fe;
   --color-info-text: #0369a1;
@@ -35,6 +37,22 @@
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
   --shadow-md: 0 4px 12px rgb(15 23 42 / 0.08);
   --shadow-lg: 0 16px 40px rgb(15 23 42 / 0.14);
+
+  // Badge tones: subtle background + dark text of the same hue (WCAG AA ≥ 4.5:1).
+  --tone-indigo-bg: #eef2ff;
+  --tone-indigo-text: #4338ca;
+  --tone-violet-bg: #f3e8ff;
+  --tone-violet-text: #7e22ce;
+  --tone-blue-bg: #dbeafe;
+  --tone-blue-text: #1d4ed8;
+  --tone-orange-bg: #ffedd5;
+  --tone-orange-text: #c2410c;
+  --tone-slate-bg: #f1f5f9;
+  --tone-slate-text: #475569;
+
+  --skeleton-base: #e2e8f0;
+  --skeleton-shine: #f1f5f9;
+  --overlay-backdrop: rgb(15 23 42 / 0.45);
 }
 
 @mixin dark-theme {
@@ -64,6 +82,7 @@
   --color-danger: #f87171;
   --color-danger-subtle: #450a0a;
   --color-danger-text: #fca5a5;
+  --color-danger-solid: #b91c1c;
   --color-info: #38bdf8;
   --color-info-subtle: #082f49;
   --color-info-text: #7dd3fc;
@@ -71,6 +90,21 @@
   --shadow-sm: 0 0 0 1px rgb(148 163 184 / 0.08);
   --shadow-md: 0 0 0 1px rgb(148 163 184 / 0.12), 0 8px 24px rgb(0 0 0 / 0.4);
   --shadow-lg: 0 0 0 1px rgb(148 163 184 / 0.14), 0 20px 48px rgb(0 0 0 / 0.55);
+
+  --tone-indigo-bg: #1e1b4b;
+  --tone-indigo-text: #a5b4fc;
+  --tone-violet-bg: #2e1065;
+  --tone-violet-text: #d8b4fe;
+  --tone-blue-bg: #172554;
+  --tone-blue-text: #93c5fd;
+  --tone-orange-bg: #431407;
+  --tone-orange-text: #fdba74;
+  --tone-slate-bg: #1e293b;
+  --tone-slate-text: #cbd5e1;
+
+  --skeleton-base: #1f2937;
+  --skeleton-shine: #334155;
+  --overlay-backdrop: rgb(2 6 23 / 0.7);
 }
 
 :root {
