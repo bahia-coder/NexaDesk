@@ -1,4 +1,4 @@
-import { formatDuration, formatRelative, initials } from './time';
+import { formatDateTime, formatDuration, formatRelative, initials } from './time';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -25,6 +25,13 @@ describe('formatRelative', () => {
     expect(formatRelative(new Date(now + 3 * HOUR), now)).toBe('dans 3 heures');
     expect(formatRelative(new Date(now - DAY), now)).toBe('hier');
     expect(formatRelative('2026-10-01T12:00:00Z', now)).toBe('01/10/2026');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('shows the company time (Europe/Paris), whatever the browser time zone', () => {
+    expect(formatDateTime('2026-11-02T19:32:00Z')).toBe('02/11/2026 20:32');
+    expect(formatDateTime('2026-07-01T06:00:00Z')).toBe('01/07/2026 08:00');
   });
 });
 

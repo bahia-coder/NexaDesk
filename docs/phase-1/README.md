@@ -51,6 +51,10 @@ Décisions prises pendant le développement, qui affinent la conception ci-dessu
 | Pertinence de la similarité | Non précisé | `ts_rank` (titre pondéré) + 0,3 × similarité trigramme ; seuils absolu (0,1) et relatif (50 % du meilleur) ; score affiché relatif au meilleur résultat | Une longue description partage toujours quelques mots avec tout : ces seuils évitent les faux positifs mesurés sur la démo |
 | Assistant sans article | Le LLM répond | Si aucun article n'est pertinent, le modèle n'est pas appelé et la création d'un ticket est proposée | Pas de réponse inventée hors de la base de connaissances, et pas de coût inutile |
 | Liens ticket ↔ article | Technicien du ticket | Technicien assigné ou admin, articles publiés uniquement ; le demandeur ne voit que les articles publiés | Un brouillon n'est pas une solution validée |
+| Détail d'un ticket | Drawer latéral (`/tickets?open=…`) | Page dédiée `/tickets/:id` | URL simple et partageable, plus confortable sur mobile, et la conversation a toute la largeur |
+| Filtres de la liste | Puces multi-valeurs | Listes déroulantes à une valeur (l'URL et l'API acceptent déjà plusieurs valeurs) | Plus simple à utiliser ; l'interface multi-valeurs pourra venir sans toucher à l'API |
+| Fuseau d'affichage | Fuseau de l'entreprise | Constante `COMPANY_TIME_ZONE` (Europe/Paris) côté Angular, alignée sur `APP_TIMEZONE` | Les échéances SLA suivent les heures ouvrées de l'entreprise : tout le monde doit lire la même heure, quel que soit le fuseau du navigateur |
+| Pistes IA sur le ticket | Onglet « IA » du détail | Étape 12 (assistant IA) ; la création propose déjà classification et solutions similaires | Regrouper les écrans IA |
 | Alertes SLA | Une par seuil | Une par seuil, réarmée si une reprise repousse l'échéance dans le futur ; indicateurs posés par `UPDATE` ciblé, sans incrémenter `@Version` | Pas de conflit `409` avec un technicien qui modifie le ticket au même moment |
 
 ## Points à valider

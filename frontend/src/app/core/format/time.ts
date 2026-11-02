@@ -5,11 +5,18 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
+/**
+ * Dates are shown in the company's time zone, whatever the browser's: SLA deadlines follow the company's business
+ * hours (backend APP_TIMEZONE, default Europe/Paris), and everyone must read the same deadline.
+ */
+export const COMPANY_TIME_ZONE = 'Europe/Paris';
+
 const RELATIVE = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
 const DATE = new Intl.DateTimeFormat('fr-FR', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
+  timeZone: COMPANY_TIME_ZONE,
 });
 const DATE_TIME = new Intl.DateTimeFormat('fr-FR', {
   day: '2-digit',
@@ -17,6 +24,7 @@ const DATE_TIME = new Intl.DateTimeFormat('fr-FR', {
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
+  timeZone: COMPANY_TIME_ZONE,
 });
 
 /** "moins d'1 min", "35 min", "1 h 24", "2 j 3 h". Negative durations are formatted by absolute value. */

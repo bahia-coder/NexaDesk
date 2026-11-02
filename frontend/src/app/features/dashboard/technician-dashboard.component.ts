@@ -16,7 +16,7 @@ import { StatCardComponent } from '../../shared/ui/stat-card.component';
 import { ActivityFeedComponent } from './activity-feed.component';
 import { formatHours, formatMinutes, formatPercent } from './dashboard.format';
 import { DashboardService } from './dashboard.service';
-import { dataOf, loadState } from './load-state';
+import { dataOf, loadState } from '../../core/http/load-state';
 import { TicketRowsComponent } from './ticket-rows.component';
 
 /** A technician's day: own queue sorted by SLA deadline, urgent and overdue tickets, own figures. */

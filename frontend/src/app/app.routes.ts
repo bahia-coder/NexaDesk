@@ -75,6 +75,11 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES),
       },
+      {
+        path: 'tickets',
+        loadChildren: () =>
+          import('./features/tickets/tickets.routes').then((m) => m.TICKET_ROUTES),
+      },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],
   },

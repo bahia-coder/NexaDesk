@@ -1,0 +1,281 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page-title">{{ staff() ? 'Tickets' : 'Mes tickets' }}</h1>
+      @if (page(); as p) {
+        <p class="muted">{{ p.totalElements }} ticket{{ p.totalElements > 1 ? 's' : '' }}</p>
+      }
+    </div>
+    <div class="page__actions">
+      @if (staff()) {
+        <div class="segmented" role="group" aria-label="Affichage">
+          <button
+            type="button"
+            class="segmented__item"
+            [attr.aria-pressed]="query().view === 'table'"
+            (click)="setView('table')"
+          >
+            <lucide-icon [img]="icons.Rows3" [size]="16" aria-hidden="true" /> Tableau
+          </button>
+          <button
+            type="button"
+            class="segmented__item"
+            [attr.aria-pressed]="query().view === 'board'"
+            (click)="setView('board')"
+          >
+            <lucide-icon [img]="icons.Columns3" [size]="16" aria-hidden="true" /> Kanban
+          </button>
+        </div>
+      }
+      <a class="btn btn--primary" routerLink="/tickets/new">
+        <lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" />
+        Nouveau ticket
+      </a>
+    </div>
+  </header>
+
+  <section class="filters card" aria-label="Filtres">
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="16" aria-hidden="true" />
+      <span class="sr-only">Rechercher</span>
+      <input
+        class="input"
+        type="search"
+        placeholder="Référence, titre, description…"
+        [value]="query().filter.search ?? ''"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </label>
+    <select
+      class="select"
+      aria-label="Statut"
+      [value]="query().filter.status?.[0] ?? ''"
+      (change)="setSelect('status', $any($event.target).value)"
+    >
+      <option value="">Tous les statuts</option>
+      @for (s of statuses; track s) {
+        <option [value]="s" [selected]="query().filter.status?.[0] === s">
+          {{ labels.status[s] }}
+        </option>
+      }
+    </select>
+    <select
+      class="select"
+      aria-label="Priorité"
+      (change)="setSelect('priority', $any($event.target).value)"
+    >
+      <option value="">Toutes les priorités</option>
+      @for (p of priorities; track p) {
+        <option [value]="p" [selected]="query().filter.priority?.[0] === p">
+          {{ labels.priority[p] }}
+        </option>
+      }
+    </select>
+    <select
+      class="select"
+      aria-label="Catégorie"
+      (change)="update({ categoryId: +$any($event.target).value || undefined })"
+    >
+      <option value="">Toutes les catégories</option>
+      @for (c of categories(); track c.id) {
+        <option [value]="c.id" [selected]="query().filter.categoryId === c.id">{{ c.name }}</option>
+      }
+    </select>
+    @if (staff()) {
+      <select
+        class="select"
+        aria-label="Périmètre"
+        (change)="update({ scope: $any($event.target).value || undefined })"
+      >
+        <option value="">Tous les tickets visibles</option>
+        @for (s of scopes.slice(1); track s) {
+          <option [value]="s" [selected]="query().filter.scope === s">{{ labels.scope[s] }}</option>
+        }
+      </select>
+      <select
+        class="select"
+        aria-label="SLA"
+        (change)="update({ sla: $any($event.target).value || undefined })"
+      >
+        <option value="">SLA : tous</option>
+        @for (s of slaFilters; track s) {
+          <option [value]="s" [selected]="query().filter.sla === s">{{ labels.sla[s] }}</option>
+        }
+      </select>
+    }
+    @if (filterCount() > 0) {
+      <button type="button" class="btn btn--ghost btn--sm" (click)="reset()">
+        <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" />
+        Réinitialiser ({{ filterCount() }})
+      </button>
+    }
+  </section>
+
+  @if (query().view === 'board' && staff()) {
+    <nx-ticket-board [filter]="query().filter" />
+  } @else if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state
+        title="Liste indisponible"
+        description="Les tickets n’ont pas pu être chargés."
+        [icon]="icons.TriangleAlert"
+      >
+        <button type="button" class="btn btn--primary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else {
+    <section class="card list" [attr.aria-busy]="state().status === 'loading'">
+      @if (page(); as p) {
+        @if (p.content.length === 0) {
+          @if (filterCount() > 0) {
+            <nx-empty-state
+              title="Aucun ticket ne correspond"
+              description="Essayez d’élargir la recherche ou de retirer des filtres."
+              [icon]="icons.SearchX"
+            >
+              <button type="button" class="btn btn--secondary" (click)="reset()">
+                Réinitialiser les filtres
+              </button>
+            </nx-empty-state>
+          } @else {
+            <nx-empty-state
+              title="Aucun ticket"
+              [description]="
+                staff()
+                  ? 'Aucun ticket dans votre périmètre.'
+                  : 'Un problème ? Décrivez-le, le support s’en occupe.'
+              "
+            >
+              <a class="btn btn--primary" routerLink="/tickets/new">Créer un ticket</a>
+            </nx-empty-state>
+          }
+        } @else {
+          <div class="table-wrap">
+            <table class="tickets">
+              <thead>
+                <tr>
+                  @for (
+                    column of [
+                      { field: 'reference', label: 'Référence' },
+                      { field: 'title', label: 'Titre' },
+                      { field: 'priority.rank', label: 'Priorité' },
+                      { field: 'status', label: 'Statut' },
+                    ];
+                    track column.field
+                  ) {
+                    <th scope="col" [attr.aria-sort]="sortState(column.field)">
+                      <button type="button" class="sort" (click)="sortBy(column.field)">
+                        {{ column.label }}
+                        <lucide-icon
+                          [img]="
+                            sortState(column.field) === 'ascending'
+                              ? icons.ArrowUp
+                              : sortState(column.field) === 'descending'
+                                ? icons.ArrowDown
+                                : icons.ArrowUpDown
+                          "
+                          [size]="12"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </th>
+                  }
+                  <th scope="col">{{ staff() ? 'Assigné' : 'Technicien' }}</th>
+                  @if (staff()) {
+                    <th scope="col" [attr.aria-sort]="sortState('resolutionDueAt')">
+                      <button type="button" class="sort" (click)="sortBy('resolutionDueAt')">
+                        SLA
+                        <lucide-icon
+                          [img]="
+                            sortState('resolutionDueAt') === 'ascending'
+                              ? icons.ArrowUp
+                              : sortState('resolutionDueAt') === 'descending'
+                                ? icons.ArrowDown
+                                : icons.ArrowUpDown
+                          "
+                          [size]="12"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </th>
+                  }
+                  <th scope="col" [attr.aria-sort]="sortState('createdAt')">
+                    <button type="button" class="sort" (click)="sortBy('createdAt')">
+                      Créé
+                      <lucide-icon
+                        [img]="
+                          sortState('createdAt') === 'ascending'
+                            ? icons.ArrowUp
+                            : sortState('createdAt') === 'descending'
+                              ? icons.ArrowDown
+                              : icons.ArrowUpDown
+                        "
+                        [size]="12"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (t of p.content; track t.id) {
+                  <tr (click)="open(t.id)">
+                    <td data-label="Référence">
+                      <a
+                        class="mono"
+                        [routerLink]="['/tickets', t.id]"
+                        (click)="$event.stopPropagation()"
+                      >
+                        {{ t.reference }}
+                      </a>
+                    </td>
+                    <td class="title" data-label="Titre">
+                      <span [attr.title]="t.title">{{ t.title }}</span>
+                      <span class="muted small">{{ t.category.name }}</span>
+                    </td>
+                    <td data-label="Priorité">
+                      <nx-priority-badge [code]="t.priority.code" [label]="t.priority.label" />
+                    </td>
+                    <td data-label="Statut"><nx-status-badge [status]="t.status" /></td>
+                    <td data-label="Assigné">
+                      @if (t.assignee; as a) {
+                        <span class="who">
+                          <nx-avatar [name]="a.fullName" [color]="a.avatarColor" [size]="24" />
+                          {{ a.fullName }}
+                        </span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    @if (staff()) {
+                      <td data-label="SLA"><nx-sla-indicator [sla]="t.sla" /></td>
+                    }
+                    <td data-label="Créé">
+                      <time [attr.datetime]="t.createdAt" [attr.title]="exact(t.createdAt)">
+                        {{ relative(t.createdAt) }}
+                      </time>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <nx-paginator
+            [page]="p.page"
+            [size]="p.size"
+            [total]="p.totalElements"
+            [sizes]="pageSizes"
+            itemLabel="ticket"
+            itemsLabel="tickets"
+            (pageChange)="goTo($event)"
+            (sizeChange)="resize($event)"
+          />
+        }
+      } @else {
+        <nx-skeleton height="40px" [lines]="8" />
+      }
+    </section>
+  }
+</div>

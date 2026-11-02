@@ -1,0 +1,291 @@
+<div class="page">
+  <a class="back" routerLink="/tickets">
+    <lucide-icon [img]="icons.ArrowLeft" [size]="16" aria-hidden="true" /> Tickets
+  </a>
+  <h1 class="page-title">Nouveau ticket</h1>
+
+  <ol class="steps" aria-label="Étapes">
+    @for (s of [1, 2, 3]; track s) {
+      <li
+        class="steps__item"
+        [class.steps__item--done]="step() > s"
+        [attr.aria-current]="step() === s ? 'step' : null"
+      >
+        <span class="steps__number">{{ s }}</span>
+        {{ s === 1 ? 'Type' : s === 2 ? 'Détails' : 'Récapitulatif' }}
+      </li>
+    }
+  </ol>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    @switch (step()) {
+      @case (1) {
+        <fieldset class="types">
+          <legend class="sr-only">Type de ticket</legend>
+          <button type="button" class="type card" (click)="chooseType('INCIDENT')">
+            <lucide-icon [img]="icons.Zap" [size]="24" aria-hidden="true" />
+            <strong>Incident</strong>
+            <span class="muted">Quelque chose ne fonctionne pas ou plus.</span>
+          </button>
+          <button type="button" class="type card" (click)="chooseType('SERVICE_REQUEST')">
+            <lucide-icon [img]="icons.Wrench" [size]="24" aria-hidden="true" />
+            <strong>Demande de service</strong>
+            <span class="muted">J’ai besoin d’un matériel, d’un accès, d’une installation…</span>
+          </button>
+        </fieldset>
+      }
+
+      @case (2) {
+        <div class="layout">
+          <div class="card fields">
+            <p class="muted">{{ labels.type[form.controls.type.value] }}</p>
+            <label class="field">
+              <span class="field__label">Titre *</span>
+              <input
+                class="input"
+                formControlName="title"
+                maxlength="150"
+                placeholder="Ex. : Mon écran reste noir au démarrage"
+                [attr.aria-invalid]="invalid('title')"
+              />
+              @if (invalid('title')) {
+                <span class="field__error">Le titre doit contenir entre 5 et 150 caractères.</span>
+              } @else {
+                <span class="field__hint">{{ form.controls.title.value.length }} / 150</span>
+              }
+            </label>
+            <label class="field">
+              <span class="field__label">Description *</span>
+              <textarea
+                class="textarea"
+                formControlName="description"
+                rows="6"
+                maxlength="5000"
+                placeholder="Que se passe-t-il ? Depuis quand ? Quel message d’erreur ?"
+                [attr.aria-invalid]="invalid('description')"
+              ></textarea>
+              @if (invalid('description')) {
+                <span class="field__error">Décrivez le problème en 10 caractères au moins.</span>
+              }
+            </label>
+
+            <div class="grid-2">
+              <label class="field">
+                <span class="field__label">Catégorie *</span>
+                <select
+                  class="select"
+                  formControlName="categoryId"
+                  [attr.aria-invalid]="invalid('categoryId')"
+                >
+                  <option [ngValue]="0" disabled>Choisir…</option>
+                  @for (c of categories(); track c.id) {
+                    <option [ngValue]="c.id">{{ c.name }}</option>
+                  }
+                </select>
+                @if (invalid('categoryId')) {
+                  <span class="field__error">Choisissez une catégorie.</span>
+                }
+              </label>
+              <label class="field">
+                <span class="field__label">Sous-catégorie</span>
+                <select class="select" formControlName="subcategoryId">
+                  <option [ngValue]="0">Aucune</option>
+                  @for (s of subcategories(); track s.id) {
+                    <option [ngValue]="s.id">{{ s.name }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+
+            <fieldset class="choice">
+              <legend class="field__label">Qui est concerné ? *</legend>
+              @for (level of levels; track level) {
+                <label class="choice__item">
+                  <input type="radio" formControlName="impact" [value]="level" />
+                  {{ labels.impact[level] }}
+                </label>
+              }
+            </fieldset>
+            <fieldset class="choice">
+              <legend class="field__label">Urgence *</legend>
+              @for (level of levels; track level) {
+                <label class="choice__item">
+                  <input type="radio" formControlName="urgency" [value]="level" />
+                  {{ labels.urgency[level] }}
+                </label>
+              }
+            </fieldset>
+            <p class="priority">Priorité calculée : <nx-priority-badge [code]="priority()" /></p>
+
+            @if (equipment().length > 0) {
+              <label class="field">
+                <span class="field__label">Équipement concerné</span>
+                <select class="select" formControlName="equipmentId">
+                  <option [ngValue]="0">Aucun</option>
+                  @for (e of equipment(); track e.id) {
+                    <option [ngValue]="e.id">
+                      {{ e.inventoryCode }} · {{ e.name }}{{ e.location ? ' · ' + e.location : '' }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+
+            <div class="field">
+              <span class="field__label">Pièces jointes</span>
+              <label class="btn btn--secondary upload">
+                <lucide-icon [img]="icons.Paperclip" [size]="16" aria-hidden="true" />
+                Ajouter des fichiers
+                <input
+                  class="sr-only"
+                  type="file"
+                  multiple
+                  [accept]="accepted"
+                  (change)="addFiles($any($event.target))"
+                />
+              </label>
+              <span class="field__hint"
+                >PNG, JPG, PDF, TXT, LOG, DOCX, XLSX · 10 Mo maximum · 5 fichiers.</span
+              >
+              @for (file of files(); track file) {
+                <span class="file">
+                  <lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />
+                  {{ file.name }} <span class="muted">({{ size(file.size) }})</span>
+                  <button
+                    type="button"
+                    class="btn btn--ghost btn--icon btn--sm"
+                    [attr.aria-label]="'Retirer ' + file.name"
+                    (click)="removeFile(file)"
+                  >
+                    <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" />
+                  </button>
+                </span>
+              }
+            </div>
+
+            <div class="nav">
+              <button type="button" class="btn btn--secondary" (click)="step.set(1)">Retour</button>
+              <button type="button" class="btn btn--primary" (click)="toReview()">Continuer</button>
+            </div>
+          </div>
+
+          <aside class="help" aria-live="polite">
+            @if (analysing()) {
+              <p class="muted small"><nx-spinner [size]="14" /> Analyse de votre description…</p>
+            }
+            @if (suggestion(); as s) {
+              @if (!suggestionDismissed()) {
+                <section class="ai card">
+                  <header class="ai__head">
+                    <lucide-icon [img]="icons.Sparkles" [size]="16" aria-hidden="true" />
+                    <strong>Suggestion</strong>
+                    <nx-ai-source-badge [source]="s.source" [disclaimer]="s.disclaimer" />
+                  </header>
+                  <p>
+                    {{ s.category?.name }}{{ s.subcategory ? ' › ' + s.subcategory.name : '' }}
+                    @if (s.priority) {
+                      · <nx-priority-badge [code]="s.priority" />
+                    }
+                  </p>
+                  @for (reason of s.reasons; track reason) {
+                    <p class="muted small">{{ reason }}</p>
+                  }
+                  <div class="ai__actions">
+                    <button
+                      type="button"
+                      class="btn btn--primary btn--sm"
+                      (click)="applySuggestion(s)"
+                    >
+                      Appliquer
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--ghost btn--sm"
+                      (click)="suggestionDismissed.set(true)"
+                    >
+                      Ignorer
+                    </button>
+                  </div>
+                </section>
+              }
+            }
+            @if (similar(); as sim) {
+              @if (sim.articles.length > 0 || sim.tickets.length > 0) {
+                <section class="card similar">
+                  <h2 class="similar__title">Ce problème a peut-être déjà une solution</h2>
+                  @for (a of sim.articles; track a.article.id) {
+                    <p class="similar__item">
+                      <lucide-icon [img]="icons.BookOpen" [size]="16" aria-hidden="true" />
+                      <span>
+                        <strong>{{ a.article.title }}</strong>
+                        <span class="muted small">{{ a.article.summary }}</span>
+                      </span>
+                    </p>
+                  }
+                  @for (t of sim.tickets; track t.ticket.id) {
+                    <p class="similar__item">
+                      <lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />
+                      <span>
+                        <a [routerLink]="['/tickets', t.ticket.id]" target="_blank">
+                          {{ t.ticket.reference }} · {{ t.ticket.title }}
+                        </a>
+                        @if (t.resolution) {
+                          <span class="muted small">Solution : {{ t.resolution }}</span>
+                        }
+                      </span>
+                    </p>
+                  }
+                </section>
+              }
+            }
+          </aside>
+        </div>
+      }
+
+      @case (3) {
+        @let v = form.getRawValue();
+        <section class="card review">
+          <dl>
+            <dt>Type</dt>
+            <dd>{{ labels.type[v.type] }}</dd>
+            <dt>Titre</dt>
+            <dd>{{ v.title }}</dd>
+            <dt>Description</dt>
+            <dd class="pre">{{ v.description }}</dd>
+            <dt>Catégorie</dt>
+            <dd>
+              {{ categoryName(v.categoryId)
+              }}{{ v.subcategoryId ? ' › ' + subcategoryName(v.subcategoryId) : '' }}
+            </dd>
+            <dt>Impact · urgence</dt>
+            <dd>{{ labels.impact[v.impact] }} · {{ labels.urgency[v.urgency] }}</dd>
+            <dt>Priorité</dt>
+            <dd><nx-priority-badge [code]="priority()" /></dd>
+            @if (v.equipmentId) {
+              <dt>Équipement</dt>
+              <dd>{{ equipmentLabel(v.equipmentId) }}</dd>
+            }
+            @if (files().length > 0) {
+              <dt>Pièces jointes</dt>
+              <dd>{{ files().length }} fichier{{ files().length > 1 ? 's' : '' }}</dd>
+            }
+          </dl>
+          @if (error(); as message) {
+            <p class="alert" role="alert">
+              <lucide-icon [img]="icons.CircleAlert" [size]="16" aria-hidden="true" /> {{ message }}
+            </p>
+          }
+          <div class="nav">
+            <button type="button" class="btn btn--secondary" (click)="step.set(2)">Modifier</button>
+            <button type="submit" class="btn btn--primary" [disabled]="submitting()">
+              @if (submitting()) {
+                <nx-spinner />
+              }
+              Créer le ticket
+            </button>
+          </div>
+        </section>
+      }
+    }
+  </form>
+</div>

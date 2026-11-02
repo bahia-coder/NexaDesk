@@ -26,7 +26,7 @@ import {
 } from './dashboard.format';
 import { CountItem, PERIODS, PeriodDays } from './dashboard.models';
 import { DashboardService } from './dashboard.service';
-import { dataOf, loadState } from './load-state';
+import { dataOf, loadState } from '../../core/http/load-state';
 import { TimelineChartComponent } from './timeline-chart.component';
 
 const PERIOD_LABELS: Record<PeriodDays, string> = {

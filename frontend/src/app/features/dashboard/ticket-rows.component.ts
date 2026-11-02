@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import { TicketSummary } from '../../core/models/ticket.models';
 import { PriorityBadgeComponent } from '../../shared/ui/priority-badge.component';
@@ -8,7 +9,7 @@ import { StatusBadgeComponent } from '../../shared/ui/status-badge.component';
 /** Compact ticket list for the dashboards: reference, title, priority, status and SLA. */
 @Component({
   selector: 'nx-ticket-rows',
-  imports: [PriorityBadgeComponent, StatusBadgeComponent, SlaIndicatorComponent],
+  imports: [RouterLink, PriorityBadgeComponent, StatusBadgeComponent, SlaIndicatorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (tickets().length === 0) {
@@ -19,7 +20,13 @@ import { StatusBadgeComponent } from '../../shared/ui/status-badge.component';
           <li class="row">
             <div class="row__main">
               <span class="mono muted">{{ ticket.reference }}</span>
-              <span class="row__title" [attr.title]="ticket.title">{{ ticket.title }}</span>
+              <a
+                class="row__title"
+                [routerLink]="['/tickets', ticket.id]"
+                [attr.title]="ticket.title"
+              >
+                {{ ticket.title }}
+              </a>
             </div>
             <div class="row__meta">
               <nx-priority-badge [code]="ticket.priority.code" [label]="ticket.priority.label" />
@@ -63,6 +70,7 @@ import { StatusBadgeComponent } from '../../shared/ui/status-badge.component';
     }
 
     .row__title {
+      color: var(--color-text);
       font-weight: 500;
       overflow: hidden;
       text-overflow: ellipsis;

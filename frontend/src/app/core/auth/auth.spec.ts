@@ -129,16 +129,14 @@ describe('authentication', () => {
     const toasts = TestBed.inject(ToastService);
 
     client.get('/api/tickets').subscribe({ error: () => undefined });
-    http
-      .expectOne('/api/tickets')
-      .flush(
-        {
-          code: 'INTERNAL_ERROR',
-          detail: 'Une erreur inattendue est survenue.',
-          traceId: 'ab12cd34',
-        },
-        { status: 500, statusText: 'Server Error' },
-      );
+    http.expectOne('/api/tickets').flush(
+      {
+        code: 'INTERNAL_ERROR',
+        detail: 'Une erreur inattendue est survenue.',
+        traceId: 'ab12cd34',
+      },
+      { status: 500, statusText: 'Server Error' },
+    );
     client.post('/api/tickets', {}).subscribe({ error: () => undefined });
     http
       .expectOne({ method: 'POST', url: '/api/tickets' })

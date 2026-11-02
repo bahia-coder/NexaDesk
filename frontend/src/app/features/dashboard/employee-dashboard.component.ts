@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import {
   CircleCheck,
+  MessageSquarePlus,
   Hourglass,
   LucideAngularModule,
   RefreshCw,
@@ -9,18 +10,21 @@ import {
   Wrench,
 } from 'lucide-angular';
 
+import { RouterLink } from '@angular/router';
+
 import { AuthService } from '../../core/auth/auth.service';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { StatCardComponent } from '../../shared/ui/stat-card.component';
 import { DashboardService } from './dashboard.service';
-import { dataOf, loadState } from './load-state';
+import { dataOf, loadState } from '../../core/http/load-state';
 import { TicketRowsComponent } from './ticket-rows.component';
 
 /** An employee's requests: where each one stands, and the resolutions waiting for their confirmation. */
 @Component({
   selector: 'nx-employee-dashboard',
   imports: [
+    RouterLink,
     LucideAngularModule,
     StatCardComponent,
     SkeletonComponent,
@@ -36,6 +40,16 @@ import { TicketRowsComponent } from './ticket-rows.component';
           <p class="muted">Où en sont vos demandes au support informatique.</p>
         </div>
       </header>
+
+      <a class="cta card" routerLink="/tickets/new">
+        <span class="cta__icon"
+          ><lucide-icon [img]="icons.MessageSquarePlus" [size]="22" aria-hidden="true"
+        /></span>
+        <span>
+          <strong>Un problème ? Décrivez-le</strong>
+          <span class="muted">Le support vous répond, et vous suivez votre demande ici.</span>
+        </span>
+      </a>
 
       @if (state().status === 'error') {
         <div class="card">
@@ -116,6 +130,35 @@ import { TicketRowsComponent } from './ticket-rows.component';
   `,
   styleUrl: './dashboard.scss',
   styles: `
+    .cta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      color: var(--color-text);
+      transition: border-color var(--duration-fast) var(--ease-standard);
+
+      &:hover {
+        border-color: var(--color-primary);
+        text-decoration: none;
+      }
+
+      > span:last-child {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+    }
+
+    .cta__icon {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: var(--color-primary-subtle);
+      color: var(--color-primary);
+    }
+
     .confirm {
       border-color: var(--color-warning);
       box-shadow: inset 3px 0 0 var(--color-warning);
@@ -128,6 +171,7 @@ export class EmployeeDashboardComponent {
 
   protected readonly icons = {
     CircleCheck,
+    MessageSquarePlus,
     Hourglass,
     RefreshCw,
     ThumbsUp,

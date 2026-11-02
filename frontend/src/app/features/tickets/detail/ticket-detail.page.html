@@ -1,0 +1,260 @@
+<div class="page">
+  <a class="back" routerLink="/tickets">
+    <lucide-icon [img]="icons.ArrowLeft" [size]="16" aria-hidden="true" /> Tickets
+  </a>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state
+        title="Ticket introuvable"
+        description="Ce ticket n’existe pas ou ne fait pas partie de vos tickets."
+        [icon]="icons.TriangleAlert"
+      >
+        <button type="button" class="btn btn--secondary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else if (ticket(); as t) {
+    <header class="head">
+      <p class="mono muted">{{ t.reference }} · {{ labels.type[t.type] }}</p>
+      @if (editing()) {
+        <form class="edit" (ngSubmit)="saveEdit(t)">
+          <label class="field">
+            <span class="field__label">Titre</span>
+            <input class="input" name="title" [(ngModel)]="editTitle" maxlength="150" />
+          </label>
+          <label class="field">
+            <span class="field__label">Description</span>
+            <textarea
+              class="textarea"
+              name="description"
+              [(ngModel)]="editDescription"
+              maxlength="5000"
+              rows="6"
+            ></textarea>
+          </label>
+          @if (editError(); as message) {
+            <p class="field__error" role="alert">{{ message }}</p>
+          }
+          <div class="edit__actions">
+            <button type="button" class="btn btn--secondary" (click)="editing.set(false)">
+              Annuler
+            </button>
+            <button type="submit" class="btn btn--primary" [disabled]="saving()">
+              @if (saving()) {
+                <nx-spinner />
+              }
+              Enregistrer
+            </button>
+          </div>
+        </form>
+      } @else {
+        <h1 class="page-title">{{ t.title }}</h1>
+      }
+      <div class="head__badges">
+        <nx-priority-badge [code]="t.priority.code" [label]="t.priority.label" />
+        <nx-status-badge [status]="t.status" />
+        <span class="muted small">
+          {{ t.category.name }}{{ t.subcategory ? ' › ' + t.subcategory.name : '' }}
+        </span>
+      </div>
+
+      @if (workflowActions().length > 0 || (t.availableActions.includes('EDIT') && !editing())) {
+        <div class="actions" role="group" aria-label="Actions sur le ticket">
+          @for (action of workflowActions(); track action; let first = $first) {
+            <button
+              type="button"
+              class="btn"
+              [class.btn--primary]="first"
+              [class.btn--secondary]="!first && action !== 'REJECT'"
+              [class.btn--danger]="action === 'REJECT'"
+              [disabled]="running() !== null"
+              (click)="run(action)"
+            >
+              @if (running() === action) {
+                <nx-spinner />
+              }
+              {{ labels.action[action] }}
+            </button>
+          }
+          @if (t.availableActions.includes('EDIT') && !editing()) {
+            <button type="button" class="btn btn--ghost" (click)="startEdit(t)">
+              <lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" /> Modifier
+            </button>
+          }
+        </div>
+      }
+    </header>
+
+    <div class="layout">
+      <div class="main">
+        @if (!editing()) {
+          <section class="card">
+            <h2 class="sr-only">Description</h2>
+            <p class="description">{{ t.description }}</p>
+          </section>
+        }
+
+        @if (t.resolution) {
+          <section class="card callout callout--success">
+            <h2 class="callout__title">Solution</h2>
+            <p class="description">{{ t.resolution }}</p>
+          </section>
+        }
+        @if (t.rejectionReason) {
+          <section class="card callout callout--danger">
+            <h2 class="callout__title">Motif du rejet</h2>
+            <p>{{ t.rejectionReason }}</p>
+          </section>
+        }
+
+        <section class="card">
+          <div class="tabs" role="tablist" aria-label="Contenu du ticket">
+            <button
+              type="button"
+              role="tab"
+              class="tab"
+              [attr.aria-selected]="tab() === 'conversation'"
+              (click)="tab.set('conversation')"
+            >
+              Conversation
+              @if (dataOf(comments()); as list) {
+                <span class="tab__count">{{ list.length }}</span>
+              }
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="tab"
+              [attr.aria-selected]="tab() === 'attachments'"
+              (click)="tab.set('attachments')"
+            >
+              Pièces jointes
+              @if (dataOf(attachments()); as list) {
+                <span class="tab__count">{{ list.length }}</span>
+              }
+            </button>
+            <button
+              type="button"
+              role="tab"
+              class="tab"
+              [attr.aria-selected]="tab() === 'history'"
+              (click)="tab.set('history')"
+            >
+              Historique
+            </button>
+          </div>
+          <div class="tab-panel" role="tabpanel">
+            @switch (tab()) {
+              @case ('conversation') {
+                @if (dataOf(comments()); as list) {
+                  <nx-ticket-conversation [ticket]="t" [comments]="list" (posted)="onPosted()" />
+                } @else {
+                  <nx-skeleton height="48px" [lines]="3" />
+                }
+              }
+              @case ('attachments') {
+                @if (dataOf(attachments()); as list) {
+                  <nx-ticket-attachments
+                    [ticket]="t"
+                    [attachments]="list"
+                    (changed)="onAttachmentsChanged()"
+                  />
+                } @else {
+                  <nx-skeleton height="40px" [lines]="2" />
+                }
+              }
+              @case ('history') {
+                @if (dataOf(history()); as list) {
+                  <nx-ticket-history [history]="list" />
+                } @else {
+                  <nx-skeleton height="32px" [lines]="4" />
+                }
+              }
+            }
+          </div>
+        </section>
+      </div>
+
+      <aside class="side">
+        <section class="card facts">
+          <dl>
+            <dt>Demandeur</dt>
+            <dd class="who">
+              <nx-avatar
+                [name]="t.requester.fullName"
+                [color]="t.requester.avatarColor"
+                [size]="24"
+              />
+              {{ t.requester.fullName }}
+            </dd>
+            <dt>Assigné à</dt>
+            <dd class="who">
+              @if (t.assignee; as a) {
+                <nx-avatar [name]="a.fullName" [color]="a.avatarColor" [size]="24" />
+                {{ a.fullName }}
+              } @else {
+                <span class="muted">Pas encore affecté</span>
+              }
+            </dd>
+            @if (t.pendingReason) {
+              <dt>En attente de</dt>
+              <dd>{{ labels.pending[t.pendingReason] }}</dd>
+            }
+            <dt>Impact · urgence</dt>
+            <dd>{{ labels.impact[t.impact] }} · {{ labels.urgency[t.urgency] }}</dd>
+            @if (t.equipment; as e) {
+              <dt>Équipement</dt>
+              <dd>
+                <span class="mono">{{ e.inventoryCode }}</span> {{ e.name }}
+              </dd>
+            }
+            <dt>Créé</dt>
+            <dd [attr.title]="exact(t.createdAt)">{{ relative(t.createdAt) }}</dd>
+            <dt>Mis à jour</dt>
+            <dd [attr.title]="exact(t.updatedAt)">{{ relative(t.updatedAt) }}</dd>
+            @if (t.reopenCount > 0) {
+              <dt>Réouvertures</dt>
+              <dd>{{ t.reopenCount }}</dd>
+            }
+          </dl>
+        </section>
+
+        @if (t.sla.state !== 'NONE') {
+          <section class="card facts">
+            <h2 class="card__title">SLA</h2>
+            <dl>
+              <dt>Première réponse</dt>
+              <dd>
+                @if (t.sla.firstRespondedAt) {
+                  <span [class.danger]="t.sla.firstResponseBreached">
+                    {{ t.sla.firstResponseBreached ? 'En retard' : 'Dans les temps' }}
+                  </span>
+                  · {{ exact(t.sla.firstRespondedAt) }}
+                } @else {
+                  Attendue avant le {{ exact(t.sla.firstResponseDueAt) }}
+                }
+              </dd>
+              <dt>Résolution</dt>
+              <dd>
+                <nx-sla-indicator [sla]="t.sla" />
+                <span class="muted small">Échéance : {{ exact(t.sla.resolutionDueAt) }}</span>
+              </dd>
+            </dl>
+          </section>
+        }
+
+        @if (t.feedback || t.availableActions.includes('GIVE_FEEDBACK')) {
+          <section class="card facts">
+            <h2 class="card__title">Évaluation</h2>
+            <nx-ticket-feedback [ticket]="t" (sent)="onFeedback()" />
+          </section>
+        }
+      </aside>
+    </div>
+  } @else {
+    <nx-skeleton height="32px" width="60%" />
+    <nx-skeleton height="160px" />
+  }
+</div>
