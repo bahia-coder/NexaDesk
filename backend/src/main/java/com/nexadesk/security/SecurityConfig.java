@@ -29,6 +29,8 @@ public class SecurityConfig {
             "/api/auth/refresh",
             "/api/auth/logout",
             "/api/auth/demo-accounts",
+            // WebSocket handshake: authentication happens on the STOMP CONNECT frame (StompAuthChannelInterceptor).
+            "/ws",
             "/actuator/health/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",

@@ -2,6 +2,7 @@ package com.nexadesk.sla;
 
 import com.nexadesk.ticket.SlaState;
 import com.nexadesk.ticket.Ticket;
+import com.nexadesk.ticket.TicketEvent;
 import com.nexadesk.ticket.TicketRepository;
 import com.nexadesk.ticket.TicketSla;
 import com.nexadesk.ticket.TicketStatus;
@@ -12,6 +13,7 @@ import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +41,7 @@ public class SlaJobs {
     private final TicketHistoryRecorder history;
     private final SlaSettings settings;
     private final SlaProperties properties;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     /** @return the number of alerts raised */
@@ -51,10 +54,12 @@ public class SlaJobs {
             SlaState state = ticketSla.view(ticket).state();
             if (state == SlaState.BREACHED && ticketRepository.markSlaBreach(ticket.getId(), now) == 1) {
                 history.recordInternal(ticket, null, HistoryAction.SLA_BREACHED, "Échéance de résolution dépassée");
+                events.publishEvent(TicketEvent.sla(ticket, true));
                 alerts++;
             } else if (state == SlaState.AT_RISK && ticket.getSlaWarningSentAt() == null
                     && ticketRepository.markSlaWarning(ticket.getId(), now) == 1) {
                 history.recordInternal(ticket, null, HistoryAction.SLA_WARNING, "Échéance de résolution proche");
+                events.publishEvent(TicketEvent.sla(ticket, false));
                 alerts++;
             }
         }
@@ -81,6 +86,8 @@ public class SlaJobs {
                 ticketSla.onStatusChanged(ticket, TicketStatus.RESOLVED, TicketStatus.CLOSED);
                 history.change(ticket, null, HistoryAction.STATUS_CHANGED, "status", TicketStatus.RESOLVED,
                         TicketStatus.CLOSED, "Clôture automatique : résolution sans réponse du demandeur");
+                events.publishEvent(TicketEvent.statusChanged(ticket, null, TicketStatus.RESOLVED,
+                        TicketStatus.CLOSED));
                 closed++;
             }
         }

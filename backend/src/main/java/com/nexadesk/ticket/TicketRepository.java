@@ -52,6 +52,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
 
     boolean existsByTitle(String title);
 
+    @EntityGraph(attributePaths = {"priority", "category", "requester", "assignee"})
+    List<Ticket> findByCreatedAtAfterOrderByCreatedAtAsc(Instant createdAfter);
+
     long countByCategory_IdAndStatusIn(Long categoryId, Collection<TicketStatus> statuses);
 
     List<Ticket> findTop10ByAssignee_IdAndStatusInOrderByCreatedAtAsc(Long assigneeId,

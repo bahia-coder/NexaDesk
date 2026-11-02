@@ -89,6 +89,13 @@ Le profil `demo` crée aussi 8 catégories, les jours fériés français 2026-20
 - États exposés sur chaque ticket : `ON_TRACK`, `AT_RISK` (seuil de 75 % configurable), `BREACHED`, `PAUSED`, `MET`, `MISSED`.
 - Une tâche planifiée (toutes les minutes) signale une fois chaque passage à risque ou en retard, et clôt les tickets résolus restés sans réponse 72 h ouvrées.
 
+## Notifications temps réel
+
+- Les services publient des événements de domaine (`TicketEvent`). Un écouteur `@TransactionalEventListener(AFTER_COMMIT)` les transforme en notifications : jamais de notification pour une action annulée.
+- Chaque notification est enregistrée (centre de notifications, badge de non lues), puis poussée en **STOMP over WebSocket** sur `/ws`, file `/user/queue/notifications`.
+- Le JWT est vérifié dans la trame `CONNECT`. Seul l'abonnement à sa propre file est autorisé, et le client ne peut rien publier.
+- API : `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all`.
+
 ## Authentification
 
 - `POST /api/auth/login` renvoie un **access token JWT** (15 min) à envoyer en `Authorization: Bearer`, et pose un **refresh token** opaque dans un cookie `httpOnly`, `Secure`, `SameSite=Strict`, limité à `/api/auth` (7 jours).

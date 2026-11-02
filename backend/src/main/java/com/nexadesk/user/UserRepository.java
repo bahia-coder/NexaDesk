@@ -41,6 +41,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             order by u.lastName, u.firstName""")
     List<User> findActiveTechniciansWithSpecialty(@Param("categoryId") Long categoryId);
 
+    List<User> findByRole_CodeAndActiveTrue(RoleCode code);
+
     boolean existsByEmail(String email);
 
     boolean existsByEmailAndIdNot(String email, Long id);

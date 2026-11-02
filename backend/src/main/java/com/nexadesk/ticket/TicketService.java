@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -59,6 +60,7 @@ public class TicketService {
     private final TicketPolicy policy;
     private final TicketMapper mapper;
     private final TicketSla ticketSla;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
     private final ZoneId zone;
 
@@ -67,7 +69,8 @@ public class TicketService {
                          UserRepository userRepository, TicketFeedbackRepository feedbackRepository,
                          TicketReferenceGenerator referenceGenerator, TicketHistoryRecorder history,
                          TicketAccess access, TicketPolicy policy, TicketMapper mapper, TicketSla ticketSla,
-                         Clock clock, @Value("${nexadesk.time-zone}") ZoneId zone) {
+                         ApplicationEventPublisher events, Clock clock,
+                         @Value("${nexadesk.time-zone}") ZoneId zone) {
         this.ticketRepository = ticketRepository;
         this.categoryRepository = categoryRepository;
         this.subCategoryRepository = subCategoryRepository;
@@ -80,6 +83,7 @@ public class TicketService {
         this.policy = policy;
         this.mapper = mapper;
         this.ticketSla = ticketSla;
+        this.events = events;
         this.clock = clock;
         this.zone = zone;
     }
@@ -111,6 +115,7 @@ public class TicketService {
 
         String onBehalf = requester == actor ? null : "Créé pour " + requester.getFullName();
         history.change(ticket, actor, HistoryAction.CREATED, "reference", null, ticket.getReference(), onBehalf);
+        events.publishEvent(TicketEvent.created(ticket, actor.getId()));
         return detail(ticket, actor);
     }
 

@@ -14,6 +14,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class TicketWorkflowService {
     private final TicketService ticketService;
     private final SolutionSource solutionSource;
     private final TicketSla ticketSla;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     /** A technician takes a new, unassigned ticket of one of their specialties. */
@@ -43,6 +45,7 @@ public class TicketWorkflowService {
         ticket.setAssignee(actor);
         moveTo(ticket, actor, TicketStatus.ASSIGNED, "Prise en charge");
         history.change(ticket, actor, HistoryAction.ASSIGNED, "assignee", null, actor.getFullName(), null);
+        events.publishEvent(TicketEvent.assigned(ticket, actor.getId(), null));
         return ticketService.detailAfterChange(ticket, actor);
     }
 
@@ -69,6 +72,7 @@ public class TicketWorkflowService {
         if (ticket.getStatus() == TicketStatus.NEW) {
             moveTo(ticket, actor, TicketStatus.ASSIGNED, null);
         }
+        events.publishEvent(TicketEvent.assigned(ticket, actor.getId(), previous == null ? null : previous.getId()));
         return ticketService.detailAfterChange(ticket, actor);
     }
 
@@ -164,6 +168,7 @@ public class TicketWorkflowService {
         ticket.setClosedAt(null);
         ticket.setReopenCount(ticket.getReopenCount() + 1);
         ticketSla.onStatusChanged(ticket, previous, ticket.getStatus());
+        events.publishEvent(TicketEvent.statusChanged(ticket, actor.getId(), previous, ticket.getStatus()));
         history.change(ticket, actor, HistoryAction.REOPENED, "status", previous, ticket.getStatus(), reason.trim());
         return ticketService.detailAfterChange(ticket, actor);
     }
@@ -178,6 +183,7 @@ public class TicketWorkflowService {
         ticket.setStatus(target);
         ticketSla.onStatusChanged(ticket, previous, target);
         history.change(ticket, actor, HistoryAction.STATUS_CHANGED, "status", previous, target, comment);
+        events.publishEvent(TicketEvent.statusChanged(ticket, actor.getId(), previous, target));
     }
 
     /** Maps "go to status X" onto the workflow action it represents from the current status. */

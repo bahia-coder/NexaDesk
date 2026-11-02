@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ public class TicketConversationService {
     private final TicketHistoryRecorder history;
     private final TicketMapper mapper;
     private final TicketSla ticketSla;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -63,6 +65,7 @@ public class TicketConversationService {
             if (TicketAccess.isStaff(actor) && !ticket.isRequestedBy(actor.getId())) {
                 ticketSla.onStaffReply(ticket);
             }
+            events.publishEvent(TicketEvent.publicComment(ticket, actor.getId()));
             resumeIfRequesterAnswered(ticket, actor);
         }
         return mapper.toDto(comment);
@@ -101,6 +104,7 @@ public class TicketConversationService {
             ticket.setPendingReason(null);
             ticket.setStatus(TicketStatus.IN_PROGRESS);
             ticketSla.onStatusChanged(ticket, TicketStatus.PENDING, TicketStatus.IN_PROGRESS);
+            events.publishEvent(TicketEvent.statusChanged(ticket, null, TicketStatus.PENDING, TicketStatus.IN_PROGRESS));
             history.change(ticket, null, HistoryAction.STATUS_CHANGED, "status", TicketStatus.PENDING,
                     TicketStatus.IN_PROGRESS, "Reprise automatique : réponse du demandeur");
         }
