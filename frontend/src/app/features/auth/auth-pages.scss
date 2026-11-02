@@ -1,0 +1,122 @@
+// Shared by the sign-in and password change pages.
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 400px;
+
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.auth-form__submit {
+  height: 40px;
+  margin-top: var(--space-2);
+}
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font: var(--text-small);
+
+  lucide-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+}
+
+.alert--error {
+  background: var(--color-danger-subtle);
+  color: var(--color-danger-text);
+}
+
+.alert--info {
+  background: var(--color-info-subtle);
+  color: var(--color-info-text);
+}
+
+.password {
+  position: relative;
+  display: block;
+
+  .input {
+    padding-right: 40px;
+  }
+}
+
+.password__toggle {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  transform: translateY(-50%);
+}
+
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.demo__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+  }
+}
+
+.demo__accounts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.demo__hint {
+  font: var(--text-small);
+  text-align: center;
+}
+
+.rules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .rules__ok {
+    color: var(--color-success-text);
+  }
+}

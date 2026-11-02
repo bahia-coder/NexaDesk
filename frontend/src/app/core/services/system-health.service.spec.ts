@@ -2,7 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
-import { BackendStatus, HEALTH_CHECK_TIMEOUT_MS, SystemHealthService } from './system-health.service';
+import {
+  BackendStatus,
+  HEALTH_CHECK_TIMEOUT_MS,
+  SystemHealthService,
+} from './system-health.service';
 
 describe('SystemHealthService', () => {
   let service: SystemHealthService;

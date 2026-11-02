@@ -28,10 +28,12 @@ import {
 } from 'lucide-angular';
 import { filter, map } from 'rxjs';
 
+import { AuthService } from '../../core/auth/auth.service';
 import { Role } from '../../core/models/user.models';
 import { navigationFor } from '../../core/navigation/navigation';
 import { LayoutService } from '../../core/services/layout.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { UserMenuComponent } from './user-menu.component';
 
 /**
  * Authenticated layout shared by all roles: sidebar (navigation of the role), header, and the page.
@@ -39,7 +41,7 @@ import { ThemeService } from '../../core/services/theme.service';
  */
 @Component({
   selector: 'nx-app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule, UserMenuComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss',
@@ -51,8 +53,13 @@ export class AppShellComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  /** Role whose navigation is shown. */
+  private readonly auth = inject(AuthService);
+
+  /**
+   * Role of the development preview only (/dev/shell?role=…, no sign-in); the signed-in user's role otherwise.
+   */
   readonly role = input<Role | null>(null);
+  private readonly effectiveRole = computed(() => this.auth.role() ?? this.role());
 
   protected readonly icons = { Hexagon, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X };
 
@@ -63,7 +70,7 @@ export class AppShellComponent {
   );
 
   protected readonly sections = computed(() => {
-    const role = this.role();
+    const role = this.effectiveRole();
     return role ? navigationFor(role, this.routedPaths, this.showPlanned) : [];
   });
 
