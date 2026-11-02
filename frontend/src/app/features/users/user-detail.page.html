@@ -1,0 +1,243 @@
+<div class="page">
+  <a class="back" routerLink="/users">
+    <lucide-icon [img]="icons.ArrowLeft" [size]="16" aria-hidden="true" /> Utilisateurs
+  </a>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state title="Compte introuvable" [icon]="icons.TriangleAlert">
+        <button type="button" class="btn btn--secondary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else if (user(); as u) {
+    <header class="identity">
+      <nx-avatar [name]="u.fullName" [color]="u.avatarColor" [size]="56" />
+      <div>
+        <h1 class="page-title">{{ u.fullName }}</h1>
+        <p class="muted">
+          {{ roleLabels[u.role] }}{{ u.departmentName ? ' · ' + u.departmentName : '' }}
+          @if (self()) {
+            · c’est vous
+          }
+        </p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <div class="stack">
+        <form class="card panel" [formGroup]="form" (ngSubmit)="saveIdentity()" novalidate>
+          <h2 class="card__title">Informations</h2>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field__label">Prénom *</span>
+              <input
+                class="input"
+                formControlName="firstName"
+                maxlength="80"
+                [attr.aria-invalid]="invalid('firstName')"
+              />
+              @if (invalid('firstName')) {
+                <span class="field__error">Le prénom est obligatoire.</span>
+              }
+            </label>
+            <label class="field">
+              <span class="field__label">Nom *</span>
+              <input
+                class="input"
+                formControlName="lastName"
+                maxlength="80"
+                [attr.aria-invalid]="invalid('lastName')"
+              />
+              @if (invalid('lastName')) {
+                <span class="field__error">Le nom est obligatoire.</span>
+              }
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">E-mail *</span>
+            <input
+              class="input"
+              type="email"
+              formControlName="email"
+              maxlength="255"
+              [attr.aria-invalid]="invalid('email')"
+            />
+            @if (invalid('email')) {
+              <span class="field__error">Saisissez une adresse e-mail valide.</span>
+            }
+          </label>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field__label">Service</span>
+              <select class="select" formControlName="departmentId">
+                <option [ngValue]="0">Aucun</option>
+                @for (d of departments(); track d.id) {
+                  <option [ngValue]="d.id">{{ d.name }}</option>
+                }
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Poste</span>
+              <input class="input" formControlName="jobTitle" maxlength="120" />
+            </label>
+          </div>
+          <label class="field">
+            <span class="field__label">Téléphone</span>
+            <input
+              class="input"
+              type="tel"
+              formControlName="phone"
+              maxlength="30"
+              [attr.aria-invalid]="invalid('phone')"
+            />
+            @if (invalid('phone')) {
+              <span class="field__error">Le numéro de téléphone n’est pas valide.</span>
+            }
+          </label>
+          @if (formError(); as message) {
+            <p class="field__error" role="alert">{{ message }}</p>
+          }
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" [disabled]="saving() || form.pristine">
+              @if (saving()) {
+                <nx-spinner />
+              }
+              Enregistrer
+            </button>
+          </div>
+        </form>
+
+        <section class="card panel">
+          <h2 class="card__title">Rôle</h2>
+          <div class="grid-2">
+            <label class="field">
+              <span class="field__label">Rôle</span>
+              <select
+                class="select"
+                [disabled]="self()"
+                (change)="role.set($any($event.target).value)"
+              >
+                @for (r of roles; track r) {
+                  <option [value]="r" [selected]="role() === r">{{ roleLabels[r] }}</option>
+                }
+              </select>
+              @if (self()) {
+                <span class="field__hint">Vous ne pouvez pas modifier votre propre rôle.</span>
+              }
+            </label>
+          </div>
+          <div class="form-actions">
+            <button
+              type="button"
+              class="btn btn--primary"
+              [disabled]="self() || savingRole() || role() === u.role"
+              (click)="saveRole()"
+            >
+              @if (savingRole()) {
+                <nx-spinner />
+              }
+              Changer le rôle
+            </button>
+          </div>
+        </section>
+
+        @if (u.role === 'TECHNICIAN') {
+          <section class="card panel">
+            <h2 class="card__title">Spécialités</h2>
+            <p class="muted">
+              Le technicien peut prendre en charge les tickets de ses spécialités et est notifié de
+              leurs nouveaux tickets.
+            </p>
+            <fieldset class="checks">
+              <legend class="sr-only">Catégories</legend>
+              @for (c of categories(); track c.id) {
+                <label class="checkbox">
+                  <input
+                    type="checkbox"
+                    [checked]="specialtyIds().includes(c.id)"
+                    (change)="toggleSpecialty(c.id, $any($event.target).checked)"
+                  />
+                  {{ c.name }}
+                </label>
+              }
+            </fieldset>
+            <div class="form-actions">
+              <button
+                type="button"
+                class="btn btn--primary"
+                [disabled]="savingSpecialties()"
+                (click)="saveSpecialties()"
+              >
+                @if (savingSpecialties()) {
+                  <nx-spinner />
+                }
+                Enregistrer les spécialités
+              </button>
+            </div>
+          </section>
+        }
+      </div>
+
+      <aside class="stack">
+        <section class="card panel">
+          <h2 class="card__title">Compte</h2>
+          <dl class="facts">
+            <dt>État</dt>
+            <dd>
+              @switch (accountState()) {
+                @case ('ACTIVE') {
+                  <span class="badge badge--success">{{ stateLabels.ACTIVE }}</span>
+                }
+                @case ('DISABLED') {
+                  <span class="badge badge--slate">{{ stateLabels.DISABLED }}</span>
+                }
+                @case ('LOCKED') {
+                  <span class="badge badge--danger">{{ stateLabels.LOCKED }}</span>
+                  <span class="muted"> jusqu’au {{ exact(u.lockedUntil) }}</span>
+                }
+                @case ('TEMPORARY_PASSWORD') {
+                  <span class="badge badge--warning">{{ stateLabels.TEMPORARY_PASSWORD }}</span>
+                }
+              }
+            </dd>
+            <dt>Dernière connexion</dt>
+            <dd>{{ exact(u.lastLoginAt) }}</dd>
+            <dt>Créé le</dt>
+            <dd>{{ exact(u.createdAt) }}</dd>
+          </dl>
+          <button
+            type="button"
+            class="btn btn--secondary"
+            [disabled]="busy()"
+            (click)="resetPassword()"
+          >
+            <lucide-icon [img]="icons.KeyRound" [size]="16" aria-hidden="true" /> Réinitialiser le
+            mot de passe
+          </button>
+          @if (!self()) {
+            <button
+              type="button"
+              class="btn"
+              [class.btn--danger]="u.active"
+              [class.btn--secondary]="!u.active"
+              [disabled]="busy()"
+              (click)="toggleActive()"
+            >
+              @if (busy()) {
+                <nx-spinner />
+              } @else {
+                <lucide-icon [img]="icons.Power" [size]="16" aria-hidden="true" />
+              }
+              {{ u.active ? 'Désactiver le compte' : 'Réactiver le compte' }}
+            </button>
+          }
+        </section>
+      </aside>
+    </div>
+  } @else {
+    <nx-skeleton height="56px" width="40%" />
+    <nx-skeleton height="240px" />
+  }
+</div>

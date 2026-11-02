@@ -1,7 +1,7 @@
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { ChevronDown, KeyRound, LogOut, LucideAngularModule } from 'lucide-angular';
+import { ChevronDown, KeyRound, LogOut, LucideAngularModule, UserRound } from 'lucide-angular';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { ROLE_LABELS } from '../../core/models/user.models';
@@ -34,6 +34,10 @@ import { AvatarComponent } from '../../shared/ui/avatar.component';
             <span class="menu__name">{{ user.fullName }}</span>
             <span class="muted">{{ user.email }}</span>
           </div>
+          <button type="button" class="menu__item" cdkMenuItem (cdkMenuItemTriggered)="profile()">
+            <lucide-icon [img]="icons.UserRound" [size]="16" aria-hidden="true" />
+            Mon profil
+          </button>
           <button
             type="button"
             class="menu__item"
@@ -140,7 +144,11 @@ export class UserMenuComponent {
   private readonly router = inject(Router);
 
   protected readonly roleLabels = ROLE_LABELS;
-  protected readonly icons = { ChevronDown, KeyRound, LogOut };
+  protected readonly icons = { ChevronDown, KeyRound, LogOut, UserRound };
+
+  protected profile(): void {
+    void this.router.navigateByUrl('/profile');
+  }
 
   protected changePassword(): void {
     void this.router.navigateByUrl('/change-password');

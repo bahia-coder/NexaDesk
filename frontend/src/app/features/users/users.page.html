@@ -1,0 +1,161 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page-title">Utilisateurs</h1>
+      @if (page(); as p) {
+        <p class="muted">{{ p.totalElements }} compte{{ p.totalElements > 1 ? 's' : '' }}</p>
+      }
+    </div>
+    <button type="button" class="btn btn--primary" (click)="create()">
+      <lucide-icon [img]="icons.UserPlus" [size]="16" aria-hidden="true" /> Nouvel utilisateur
+    </button>
+  </header>
+
+  <section class="filters card" aria-label="Filtres">
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="16" aria-hidden="true" />
+      <span class="sr-only">Rechercher</span>
+      <input
+        class="input"
+        type="search"
+        placeholder="Nom, prénom, e-mail…"
+        [value]="filter().search ?? ''"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </label>
+    <select
+      class="select"
+      aria-label="Rôle"
+      (change)="update({ role: $any($event.target).value || null })"
+    >
+      <option value="">Tous les rôles</option>
+      @for (r of roles; track r) {
+        <option [value]="r" [selected]="filter().role === r">{{ roleLabels[r] }}</option>
+      }
+    </select>
+    <select
+      class="select"
+      aria-label="Service"
+      (change)="update({ departmentId: $any($event.target).value || null })"
+    >
+      <option value="">Tous les services</option>
+      @for (d of departments(); track d.id) {
+        <option [value]="d.id" [selected]="filter().departmentId === d.id">{{ d.name }}</option>
+      }
+    </select>
+    <select
+      class="select"
+      aria-label="État"
+      (change)="update({ active: $any($event.target).value || null })"
+    >
+      <option value="">Actifs et désactivés</option>
+      <option value="true" [selected]="filter().active === true">Actifs</option>
+      <option value="false" [selected]="filter().active === false">Désactivés</option>
+    </select>
+    @if (filtered()) {
+      <button type="button" class="btn btn--ghost btn--sm" (click)="reset()">
+        <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" /> Réinitialiser
+      </button>
+    }
+  </section>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state
+        title="Liste indisponible"
+        description="Les comptes n’ont pas pu être chargés."
+        [icon]="icons.TriangleAlert"
+      >
+        <button type="button" class="btn btn--primary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else {
+    <section class="card list">
+      @if (page(); as p) {
+        @if (p.content.length === 0) {
+          <nx-empty-state
+            title="Aucun compte ne correspond"
+            description="Essayez une autre recherche ou retirez des filtres."
+            [icon]="icons.SearchX"
+          >
+            <button type="button" class="btn btn--secondary" (click)="reset()">
+              Réinitialiser les filtres
+            </button>
+          </nx-empty-state>
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Utilisateur</th>
+                  <th scope="col">Rôle</th>
+                  <th scope="col">Service</th>
+                  <th scope="col">État</th>
+                  <th scope="col">Dernière connexion</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (u of p.content; track u.id) {
+                  <tr (click)="open(u)">
+                    <td>
+                      <span class="who">
+                        <nx-avatar [name]="u.fullName" [color]="u.avatarColor" [size]="32" />
+                        <span class="who__text">
+                          <a [routerLink]="['/users', u.id]" (click)="$event.stopPropagation()">{{
+                            u.fullName
+                          }}</a>
+                          <span class="muted small">{{ u.email }}</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        class="badge"
+                        [class.badge--violet]="u.role === 'ADMIN'"
+                        [class.badge--indigo]="u.role === 'TECHNICIAN'"
+                      >
+                        {{ roleLabels[u.role] }}
+                      </span>
+                    </td>
+                    <td>{{ u.departmentName ?? '—' }}</td>
+                    <td>
+                      @switch (stateOf(u)) {
+                        @case ('ACTIVE') {
+                          <span class="badge badge--success">{{ stateLabels.ACTIVE }}</span>
+                        }
+                        @case ('DISABLED') {
+                          <span class="badge badge--slate">{{ stateLabels.DISABLED }}</span>
+                        }
+                        @case ('LOCKED') {
+                          <span class="badge badge--danger">{{ stateLabels.LOCKED }}</span>
+                        }
+                        @case ('TEMPORARY_PASSWORD') {
+                          <span class="badge badge--warning">{{
+                            stateLabels.TEMPORARY_PASSWORD
+                          }}</span>
+                        }
+                      }
+                    </td>
+                    <td [attr.title]="exact(u.lastLoginAt)">{{ relative(u.lastLoginAt) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <nx-paginator
+            [page]="p.page"
+            [size]="p.size"
+            [total]="p.totalElements"
+            itemLabel="compte"
+            itemsLabel="comptes"
+            (pageChange)="goTo($event)"
+          />
+        }
+      } @else {
+        <nx-skeleton height="44px" [lines]="8" />
+      }
+    </section>
+  }
+</div>

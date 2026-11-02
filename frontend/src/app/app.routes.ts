@@ -89,6 +89,28 @@ export const routes: Routes = [
           ),
         title: 'NexaDesk · Mes interventions',
       },
+      {
+        path: 'users',
+        canMatch: [roleGuard('ADMIN')],
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/users/users.page').then((m) => m.UsersPage),
+            title: 'NexaDesk · Utilisateurs',
+          },
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./features/users/user-detail.page').then((m) => m.UserDetailPage),
+            title: 'NexaDesk · Utilisateur',
+          },
+        ],
+      },
+      {
+        path: 'profile',
+        loadComponent: () => import('./features/users/profile.page').then((m) => m.ProfilePage),
+        title: 'NexaDesk · Mon profil',
+      },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
     ],
   },

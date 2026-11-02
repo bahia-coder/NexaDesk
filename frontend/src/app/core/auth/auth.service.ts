@@ -113,6 +113,11 @@ export class AuthService {
       .pipe(catchError(() => of([])));
   }
 
+  /** Profile fields changed by the user (job title, avatar colour…): the header shows them at once. */
+  updateUser(changes: Partial<Pick<CurrentUser, 'jobTitle' | 'avatarColor'>>): void {
+    this.currentUser.update((user) => (user ? { ...user, ...changes } : user));
+  }
+
   private apply(response: AuthResponse): CurrentUser {
     this.accessToken = response.accessToken;
     this.currentUser.set(response.user);
