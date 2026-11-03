@@ -93,11 +93,25 @@ public class AnalyticsQueries {
     }
 
     /** Average resolution time (hours) of the tickets resolved in the period; null when none was resolved. */
+    /**
+     * Seconds a resolved ticket was being worked on: creation to resolution, minus the time spent waiting
+     * ({@code PENDING}) or resolved before a reopening ({@code RESOLVED}, {@code CLOSED}), read from its status
+     * history. Calendar time: the SLA clock counts business time, this measures what the requester lived.
+     */
+    static final String HANDLING_SECONDS = """
+            (extract(epoch from t.resolved_at - t.created_at) - coalesce((
+                select sum(extract(epoch from least(p.ended_at, t.resolved_at) - p.started_at))
+                from (select h.created_at as started_at, h.new_value as status,
+                             lead(h.created_at) over (order by h.created_at, h.id) as ended_at
+                      from ticket_history h where h.ticket_id = t.id and h.field = 'status') p
+                where p.status in ('PENDING', 'RESOLVED', 'CLOSED') and p.started_at < t.resolved_at), 0))""";
+
     public Double avgResolutionHours(Scope s) {
         // AVG over no row is SQL NULL: optional() accepts it, single() would reject it.
         return scoped("""
-                select avg(extract(epoch from t.resolved_at - t.created_at)) / 3600 from tickets t
-                where t.resolved_at >= :from and t.resolved_at < :to""" + TICKET_FILTERS, s)
+                select avg(%s) / 3600 from tickets t
+                where t.resolved_at >= :from and t.resolved_at < :to""".formatted(HANDLING_SECONDS)
+                + TICKET_FILTERS, s)
                 .query((rs, i) -> nullableDouble(rs, 1)).optional().orElse(null);
     }
 
@@ -224,7 +238,7 @@ public class AnalyticsQueries {
                              and t.status in ('ASSIGNED', 'IN_PROGRESS', 'PENDING')%1$s) as open_assigned,
                           (select count(*) from tickets t where t.assignee_id = u.id
                              and t.resolved_at >= :from and t.resolved_at < :to%1$s) as resolved,
-                          (select avg(extract(epoch from t.resolved_at - t.created_at)) / 3600 from tickets t
+                          (select avg(%2$s) / 3600 from tickets t
                              where t.assignee_id = u.id and t.resolved_at >= :from and t.resolved_at < :to%1$s)
                              as avg_hours,
                           (select 100.0 * avg(case when t.resolved_at <= t.resolution_due_at then 1 else 0 end)
@@ -239,7 +253,7 @@ public class AnalyticsQueries {
                         from users u join roles r on r.id = u.role_id
                         where r.code = 'TECHNICIAN' and u.active
                           and (cast(:technicianId as bigint) is null or u.id = :technicianId)
-                        order by resolved desc, full_name""".formatted(ticketScope))
+                        order by resolved desc, full_name""".formatted(ticketScope, HANDLING_SECONDS))
                 .param("from", utc(s.from())).param("to", utc(s.to()))
                 .param("categoryId", s.categoryId()).param("technicianId", s.technicianId())
                 .query((rs, i) -> new TechnicianPerformance(rs.getLong("id"), rs.getString("full_name"),

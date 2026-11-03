@@ -5,27 +5,54 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-/**
- * Dates are shown in the company's time zone, whatever the browser's: SLA deadlines follow the company's business
- * hours (backend APP_TIMEZONE, default Europe/Paris), and everyone must read the same deadline.
- */
-export const COMPANY_TIME_ZONE = 'Europe/Paris';
+/** Until the API has answered (and in tests): the default of the backend's APP_TIMEZONE. */
+export const DEFAULT_TIME_ZONE = 'Europe/Paris';
+
+let zone = DEFAULT_TIME_ZONE;
 
 const RELATIVE = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });
-const DATE = new Intl.DateTimeFormat('fr-FR', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  timeZone: COMPANY_TIME_ZONE,
-});
-const DATE_TIME = new Intl.DateTimeFormat('fr-FR', {
-  day: '2-digit',
-  month: '2-digit',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: COMPANY_TIME_ZONE,
-});
+let DATE = dateFormat();
+let DATE_TIME = dateTimeFormat();
+
+function dateFormat(): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: zone,
+  });
+}
+
+function dateTimeFormat(): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: zone,
+  });
+}
+
+/**
+ * Dates are shown in the company's time zone, whatever the browser's: SLA deadlines follow the company's business
+ * hours, and everyone must read the same deadline. The zone comes from the API (APP_TIMEZONE) at start-up.
+ */
+export function companyTimeZone(): string {
+  return zone;
+}
+
+/** Called once at start-up with the API's zone; an unknown zone name is ignored (the default stays). */
+export function setCompanyTimeZone(timeZone: string): void {
+  try {
+    new Intl.DateTimeFormat('fr-FR', { timeZone });
+  } catch {
+    return;
+  }
+  zone = timeZone;
+  DATE = dateFormat();
+  DATE_TIME = dateTimeFormat();
+}
 
 /** "moins d'1 min", "35 min", "1 h 24", "2 j 3 h". Negative durations are formatted by absolute value. */
 export function formatDuration(ms: number): string {

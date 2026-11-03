@@ -1,4 +1,12 @@
-import { formatDateTime, formatDuration, formatRelative, initials } from './time';
+import {
+  DEFAULT_TIME_ZONE,
+  companyTimeZone,
+  formatDateTime,
+  formatDuration,
+  formatRelative,
+  initials,
+  setCompanyTimeZone,
+} from './time';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -32,6 +40,20 @@ describe('formatDateTime', () => {
   it('shows the company time (Europe/Paris), whatever the browser time zone', () => {
     expect(formatDateTime('2026-11-02T19:32:00Z')).toBe('02/11/2026 20:32');
     expect(formatDateTime('2026-07-01T06:00:00Z')).toBe('01/07/2026 08:00');
+  });
+
+  it('follows the zone the API configures, and ignores an unknown one', () => {
+    try {
+      setCompanyTimeZone('Africa/Casablanca');
+      expect(companyTimeZone()).toBe('Africa/Casablanca');
+      expect(formatDateTime('2026-11-02T19:32:00Z')).toBe('02/11/2026 20:32');
+      setCompanyTimeZone('America/New_York');
+      expect(formatDateTime('2026-11-02T19:32:00Z')).toBe('02/11/2026 14:32');
+      setCompanyTimeZone('Not/AZone');
+      expect(companyTimeZone()).toBe('America/New_York');
+    } finally {
+      setCompanyTimeZone(DEFAULT_TIME_ZONE);
+    }
   });
 });
 

@@ -29,6 +29,8 @@ public class SecurityConfig {
             "/api/auth/refresh",
             "/api/auth/logout",
             "/api/auth/demo-accounts",
+            // Deployment settings read by the web client at start-up (time zone): nothing sensitive.
+            "/api/client-config",
             // WebSocket handshake: authentication happens on the STOMP CONNECT frame (StompAuthChannelInterceptor).
             "/ws",
             "/actuator/health/**",

@@ -38,6 +38,13 @@ class NexaDeskApplicationTests {
     }
 
     @Test
+    void clientConfigIsPublicAndGivesTheCompanyTimeZone() throws Exception {
+        mockMvc.perform(get("/api/client-config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.timeZone").value("Europe/Paris"));
+    }
+
+    @Test
     void anyOtherEndpointRequiresAuthentication() throws Exception {
         mockMvc.perform(get("/api/tickets"))
                 .andExpect(status().isUnauthorized());

@@ -9,6 +9,7 @@ import { provideRouter, withComponentInputBinding, withViewTransitions } from '@
 
 import { routes } from './app.routes';
 import { AuthService } from './core/auth/auth.service';
+import { loadClientConfig } from './core/config/client-config';
 import { authInterceptor, errorInterceptor } from './core/http/interceptors';
 
 export const appConfig: ApplicationConfig = {
@@ -22,7 +23,10 @@ export const appConfig: ApplicationConfig = {
     ),
     // authInterceptor first: it sees the final outcome (after the 401 → refresh → retry cycle).
     provideHttpClient(withFetch(), withInterceptors([authInterceptor, errorInterceptor])),
-    // A reload keeps the session: the refresh cookie is traded for a new access token before routing.
-    provideAppInitializer(() => inject(AuthService).restoreSession()),
+    // Before routing, in parallel: the company time zone (dates are shown in it), and the session kept across a
+    // reload (the refresh cookie is traded for a new access token).
+    provideAppInitializer(() =>
+      Promise.all([loadClientConfig(), inject(AuthService).restoreSession()]).then(() => undefined),
+    ),
   ],
 };

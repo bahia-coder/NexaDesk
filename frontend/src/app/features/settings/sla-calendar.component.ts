@@ -11,7 +11,7 @@ import { LucideAngularModule, Trash2 } from 'lucide-angular';
 import { switchMap } from 'rxjs';
 
 import { PRIORITY_LABELS } from '../../core/format/labels';
-import { COMPANY_TIME_ZONE, formatDateTime } from '../../core/format/time';
+import { companyTimeZone, formatDateTime } from '../../core/format/time';
 import { toApiProblem } from '../../core/http/api-error';
 import { dataOf, loadState } from '../../core/http/load-state';
 import { PriorityCode } from '../../core/models/ticket.models';
@@ -230,7 +230,7 @@ export class SlaCalendarComponent {
       .sort((a, b) => a.day.localeCompare(b.day)),
   );
   protected readonly today = computed(() =>
-    nowInZone(this.clock.now(), COMPANY_TIME_ZONE).slice(0, 10),
+    nowInZone(this.clock.now(), companyTimeZone()).slice(0, 10),
   );
   protected newDay = '';
   protected newLabel = '';
@@ -238,7 +238,7 @@ export class SlaCalendarComponent {
 
   // ---- Preview -----------------------------------------------------------------------------------------
   protected previewPriority: PriorityCode = 'HIGH';
-  protected previewFrom = nowInZone(Date.now(), COMPANY_TIME_ZONE);
+  protected previewFrom = nowInZone(Date.now(), companyTimeZone());
   protected readonly preview = signal<SlaPreview | null>(null);
   protected readonly previewing = signal(false);
 
@@ -314,7 +314,7 @@ export class SlaCalendarComponent {
   }
 
   protected runPreview(): void {
-    const from = zonedToInstant(this.previewFrom, COMPANY_TIME_ZONE);
+    const from = zonedToInstant(this.previewFrom, companyTimeZone());
     this.previewing.set(true);
     this.api.preview(this.previewPriority, from).subscribe({
       next: (result) => {

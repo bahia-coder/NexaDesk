@@ -271,6 +271,19 @@ class KnowledgeAndAiIntegrationTest {
         assertThat(answer.get("articles").get(0).get("article").get("id").asLong()).isEqualTo(articleId);
 
         call(employee, post("/api/ai/assistant"), Map.of("question", "")).andExpect(status().isBadRequest());
+
+        // A short follow-up borrows the previous question; an unrelated question is searched on its own.
+        List<Map<String, String>> history = List.of(
+                Map.of("role", "USER", "content", "Que faire quand la photocopieuse " + word + " bourre ?"),
+                Map.of("role", "ASSISTANT", "content", "Articles proposés : bourrage"));
+        JsonNode followUp = body(call(employee, post("/api/ai/assistant"),
+                Map.of("question", "Et en couleur ?", "history", history)).andExpect(status().isOk()));
+        assertThat(followUp.get("articles").get(0).get("article").get("id").asLong()).isEqualTo(articleId);
+        JsonNode unrelated = body(call(employee, post("/api/ai/assistant"),
+                Map.of("question", "Comment commander un nouveau bureau en bois massif ?", "history", history))
+                .andExpect(status().isOk()));
+        assertThat(unrelated.get("articles")).isEmpty();
+        assertThat(unrelated.get("suggestTicket").asBoolean()).isTrue();
     }
 
     @Test

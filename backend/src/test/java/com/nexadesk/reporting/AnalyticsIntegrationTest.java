@@ -18,6 +18,10 @@ import com.nexadesk.user.User;
 import com.nexadesk.user.UserRepository;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,6 +36,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -60,6 +65,8 @@ class AnalyticsIntegrationTest {
     private TicketCategoryRepository categoryRepository;
     @Autowired
     private PasswordEncoder passwordEncoder;
+    @Autowired
+    private JdbcClient jdbc;
 
     private long categoryId;
     private long technicianId;
@@ -154,6 +161,53 @@ class AnalyticsIntegrationTest {
 
         call(admin, get("/api/reports/summary").param("from", "2026-12-31").param("to", "2026-01-01"))
                 .andExpect(status().isBadRequest());
+    }
+
+    /** Replaces a ticket's timeline: created at {@code start}, then each status at {@code start + hours}. */
+    private void timeline(long ticketId, Instant start, Object... hoursAndStatuses) {
+        jdbc.sql("delete from ticket_history where ticket_id = :id and field = 'status'").param("id", ticketId).update();
+        Instant resolvedAt = null;
+        for (int i = 0; i < hoursAndStatuses.length; i += 2) {
+            Instant at = start.plus(Duration.ofMinutes((long) (60 * ((Number) hoursAndStatuses[i]).doubleValue())));
+            String status = (String) hoursAndStatuses[i + 1];
+            jdbc.sql("""
+                            insert into ticket_history (ticket_id, action, field, new_value, created_at)
+                            values (:id, 'STATUS_CHANGED', 'status', :status, :at)""")
+                    .param("id", ticketId).param("status", status).param("at", OffsetDateTime.ofInstant(at, ZoneOffset.UTC))
+                    .update();
+            if (status.equals("RESOLVED")) {
+                resolvedAt = at;
+            }
+        }
+        jdbc.sql("update tickets set created_at = :created, resolved_at = :resolved where id = :id")
+                .param("created", OffsetDateTime.ofInstant(start, ZoneOffset.UTC))
+                .param("resolved", OffsetDateTime.ofInstant(resolvedAt, ZoneOffset.UTC)).param("id", ticketId)
+                .update();
+    }
+
+    @Test
+    void averageResolutionTimeLeavesOutWaitingAndReopenedPeriods() throws Exception {
+        scenario();
+        long waited = ticket("LOW", "MEDIUM");
+        long reopened = ticket("LOW", "MEDIUM");
+        for (long id : new long[] {waited, reopened}) {
+            call(technician, post("/api/tickets/{id}/take", id)).andExpect(status().isOk());
+        }
+        Instant start = Instant.now().minus(Duration.ofHours(12));
+        // 8 h from creation to resolution, 4 h of them waiting for the user: 4 h of work.
+        timeline(waited, start, 1, "IN_PROGRESS", 2, "PENDING", 6, "IN_PROGRESS", 8, "RESOLVED");
+        // Resolved after 2 h, reopened 3 h later, resolved again 1 h after: 3 h of work.
+        timeline(reopened, start, 1, "IN_PROGRESS", 2, "RESOLVED", 5, "IN_PROGRESS", 6, "RESOLVED");
+        // The scenario's ticket took no time at all: [0 + 4 + 3] / 3 = 2.3 h once rounded.
+        long quick = jdbc.sql("select id from tickets where category_id = :c and impact = 'HIGH'")
+                .param("c", categoryId).query(Long.class).single();
+        timeline(quick, start, 0, "IN_PROGRESS", 0, "RESOLVED");
+
+        call(admin, get("/api/reports/summary").param("categoryId", String.valueOf(categoryId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.avgResolutionHours").value(2.3))
+                .andExpect(jsonPath("$.byTechnician[?(@.id == " + technicianId + ")].avgResolutionHours")
+                        .value(Matchers.contains(Matchers.closeTo(7.0 / 3, 0.01))));
     }
 
     @Test

@@ -66,6 +66,8 @@ public class AiService {
     private static final int SUGGESTION_TICKETS = 5;
     private static final int SUGGESTION_ARTICLES = 3;
     private static final int ASSISTANT_ARTICLES = 4;
+    /** Up to this many words, a question that finds nothing alone is read as a follow-up. */
+    static final int FOLLOW_UP_MAX_WORDS = 5;
 
     private final AiRuntime runtime;
     private final AiRateLimiter rateLimiter;
@@ -220,11 +222,9 @@ public class AiService {
      */
     public AssistantAnswerDto assistant(AssistantRequest request) {
         List<ChatTurn> history = request.history() == null ? List.of() : request.history();
-        // The previous question gives context to a follow-up such as "et sur Mac ?".
         String previous = history.stream().filter(turn -> turn.role() == ChatRole.USER)
                 .reduce((first, second) -> second).map(ChatTurn::content).orElse("");
-        List<RelatedArticle> articles = similarity.articlesWithContent(request.question(),
-                request.question() + " " + previous, ASSISTANT_ARTICLES);
+        List<RelatedArticle> articles = assistantArticles(request.question(), previous);
         List<ArticleMatchDto> matches = matches(articles);
         if (runtime.mode() == AiSource.DISABLED) {
             return new AssistantAnswerDto(AiSource.DISABLED, DISABLED_DISCLAIMER, null, matches, matches.isEmpty());
@@ -257,6 +257,22 @@ public class AiService {
                 .toList();
         return new AssistantAnswerDto(outcome.source(), outcome.disclaimer(), answer.answer(), ordered,
                 answer.suggestTicket());
+    }
+
+    /**
+     * A new question is searched alone, otherwise the previous topic would bring its articles back for an
+     * unrelated request. A short follow-up ("et sur Mac ?") that finds nothing alone borrows the previous question.
+     */
+    private List<RelatedArticle> assistantArticles(String question, String previous) {
+        List<RelatedArticle> alone = similarity.articlesWithContent(question, question, ASSISTANT_ARTICLES);
+        if (!alone.isEmpty() || previous.isBlank() || !isFollowUp(question)) {
+            return alone;
+        }
+        return similarity.articlesWithContent(question, question + " " + previous, ASSISTANT_ARTICLES);
+    }
+
+    static boolean isFollowUp(String question) {
+        return question.trim().split("\\s+").length <= FOLLOW_UP_MAX_WORDS;
     }
 
     // ---- Model plumbing ----------------------------------------------------------------------------------

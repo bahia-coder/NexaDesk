@@ -2,7 +2,7 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
-import { COMPANY_TIME_ZONE } from '../../core/format/time';
+import { companyTimeZone } from '../../core/format/time';
 import { toApiProblem } from '../../core/http/api-error';
 import { SpinnerComponent } from '../../shared/ui/spinner.component';
 import { nowInZone } from '../settings/zoned-time';
@@ -160,7 +160,7 @@ export class EquipmentFormDialogComponent {
   protected readonly types = EQUIPMENT_TYPES;
   protected readonly typeLabels = EQUIPMENT_TYPE_LABELS;
   /** yyyy-MM-dd in the company time zone, as the API checks it. */
-  protected readonly today = nowInZone(Date.now(), COMPANY_TIME_ZONE).slice(0, 10);
+  protected readonly today = nowInZone(Date.now(), companyTimeZone()).slice(0, 10);
   protected readonly saving = signal(false);
   protected readonly error = signal<string | null>(null);
   /** Field errors returned by the API (400 VALIDATION_FAILED, 409 serial number already used). */
