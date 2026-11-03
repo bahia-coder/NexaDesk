@@ -1,0 +1,175 @@
+<div class="page">
+  <a class="back" routerLink="/equipment">
+    <lucide-icon [img]="icons.ArrowLeft" [size]="16" aria-hidden="true" />
+    {{ employee() ? 'Mes équipements' : 'Équipements' }}
+  </a>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state title="Équipement introuvable" [icon]="icons.TriangleAlert">
+        <button type="button" class="btn btn--secondary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else if (equipment(); as e) {
+    <header class="identity">
+      <span class="device-icon">
+        <lucide-icon [img]="typeIcons[e.type]" [size]="28" aria-hidden="true" />
+      </span>
+      <div>
+        <div class="title-row">
+          <h1 class="page-title">{{ e.name }}</h1>
+          <span [class]="'badge badge--' + statusTones[e.status]">{{
+            statusLabels[e.status]
+          }}</span>
+        </div>
+        <p class="muted">
+          <span class="mono">{{ e.inventoryCode }}</span> · {{ typeLabels[e.type] }}
+        </p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <div class="stack">
+        <section class="card panel">
+          <h2 class="card__title">Informations</h2>
+          <dl class="facts">
+            <dt>Marque et modèle</dt>
+            <dd>{{ e.brand || e.model ? (e.brand ?? '') + ' ' + (e.model ?? '') : '—' }}</dd>
+            <dt>Numéro de série</dt>
+            <dd class="mono">{{ e.serialNumber ?? '—' }}</dd>
+            <dt>Date d’acquisition</dt>
+            <dd>{{ day(e.acquisitionDate) }}</dd>
+            <dt>Fin de garantie</dt>
+            <dd>
+              {{ day(e.warrantyEndDate) }}
+              @if (e.warrantyEndDate) {
+                @if (e.underWarranty) {
+                  <span class="badge badge--success">Sous garantie</span>
+                } @else {
+                  <span class="badge badge--slate">Expirée</span>
+                }
+              }
+            </dd>
+            <dt>Détenteur</dt>
+            <dd>
+              @if (e.assignedUser; as holder) {
+                <span class="who">
+                  <nx-avatar [name]="holder.fullName" [color]="holder.avatarColor" [size]="24" />
+                  {{ holder.fullName }}
+                </span>
+              } @else if (e.shared) {
+                Équipement partagé
+              } @else {
+                Personne
+              }
+            </dd>
+            <dt>Emplacement</dt>
+            <dd>{{ e.location ?? '—' }}</dd>
+            @if (e.notes) {
+              <dt>Notes</dt>
+              <dd class="notes">{{ e.notes }}</dd>
+            }
+          </dl>
+        </section>
+
+        @if (!employee()) {
+          <section class="card panel">
+            <h2 class="card__title">Incidents</h2>
+            @if (dataOf(tickets()); as list) {
+              <nx-ticket-rows
+                [tickets]="list"
+                emptyText="Aucun ticket lié à cet équipement."
+                [showSla]="false"
+              />
+            } @else {
+              <nx-skeleton height="40px" [lines]="3" />
+            }
+          </section>
+
+          <section class="card panel">
+            <h2 class="card__title">Historique des affectations</h2>
+            @if (dataOf(assignments()); as list) {
+              @if (list.length === 0) {
+                <p class="muted">Jamais affecté à un utilisateur.</p>
+              } @else {
+                <ul class="history">
+                  @for (a of list; track a.id) {
+                    <li>
+                      <span class="who">
+                        <nx-avatar
+                          [name]="a.user.fullName"
+                          [color]="a.user.avatarColor"
+                          [size]="24"
+                        />
+                        {{ a.user.fullName }}
+                      </span>
+                      <span class="muted">
+                        @if (a.returnedAt) {
+                          du {{ exact(a.assignedAt) }} au {{ exact(a.returnedAt) }}
+                        } @else {
+                          depuis le {{ exact(a.assignedAt) }}
+                        }
+                      </span>
+                    </li>
+                  }
+                </ul>
+              }
+            } @else {
+              <nx-skeleton height="32px" [lines]="2" />
+            }
+          </section>
+        }
+      </div>
+
+      <aside class="stack">
+        <section class="card panel">
+          <h2 class="card__title">Actions</h2>
+          @if (e.status === 'RETIRED') {
+            <p class="muted">Équipement retiré du parc : sa fiche est en lecture seule.</p>
+          } @else {
+            <div class="actions">
+              <a
+                class="btn btn--secondary"
+                routerLink="/tickets/new"
+                [queryParams]="{ equipmentId: e.id }"
+              >
+                <lucide-icon [img]="icons.TicketPlus" [size]="16" aria-hidden="true" /> Signaler un
+                incident
+              </a>
+              @for (action of actions(); track action) {
+                <button
+                  type="button"
+                  class="btn"
+                  [class.btn--secondary]="!buttons[action].danger"
+                  [class.btn--danger]="buttons[action].danger"
+                  [disabled]="running() !== null"
+                  (click)="run(action, e)"
+                >
+                  @if (running() === action) {
+                    <nx-spinner />
+                  } @else {
+                    <lucide-icon [img]="buttons[action].icon" [size]="16" aria-hidden="true" />
+                  }
+                  {{ label(action, e) }}
+                </button>
+              }
+            </div>
+            @if (needsLocation()) {
+              <p class="field__hint">
+                Renseignez un emplacement pour mettre cet équipement en service en partage.
+              </p>
+            }
+            @if (e.status === 'IN_REPAIR') {
+              <p class="field__hint">Un équipement en réparation ne peut pas être affecté.</p>
+            }
+          }
+        </section>
+      </aside>
+    </div>
+  } @else {
+    <nx-skeleton height="56px" width="40%" />
+    <nx-skeleton height="240px" />
+  }
+</div>

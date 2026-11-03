@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -87,6 +96,9 @@ export class TicketCreatePage {
   protected readonly levels: Level[] = ['LOW', 'MEDIUM', 'HIGH'];
   protected readonly accepted = ACCEPTED_FILES;
 
+  /** ?equipmentId= from a device page ("Signaler un incident"): preselected if the user may pick it. */
+  readonly equipmentId = input<string>();
+
   protected readonly step = signal<1 | 2 | 3>(1);
 
   protected readonly form = inject(NonNullableFormBuilder).group({
@@ -161,6 +173,13 @@ export class TicketCreatePage {
         ),
       )
       .subscribe((result) => this.similar.set(result));
+
+    effect(() => {
+      const wanted = Number(this.equipmentId());
+      if (wanted > 0 && this.equipment().some((item) => item.id === wanted)) {
+        untracked(() => this.form.controls.equipmentId.setValue(wanted));
+      }
+    });
 
     this.form.controls.categoryId.valueChanges
       .pipe(takeUntilDestroyed())

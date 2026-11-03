@@ -1,0 +1,186 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page-title">{{ employee() ? 'Mes équipements' : 'Équipements' }}</h1>
+      @if (page(); as p) {
+        <p class="muted">
+          {{ p.totalElements }} équipement{{ p.totalElements > 1 ? 's' : '' }}
+          {{ employee() ? 'à votre nom' : 'dans le parc' }}
+        </p>
+      }
+    </div>
+    @if (admin()) {
+      <button type="button" class="btn btn--primary" (click)="create()">
+        <lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" /> Nouvel équipement
+      </button>
+    }
+  </header>
+
+  <section class="filters card" aria-label="Filtres">
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="16" aria-hidden="true" />
+      <span class="sr-only">Rechercher</span>
+      <input
+        class="input"
+        type="search"
+        placeholder="Code, nom, marque, modèle, n° de série, emplacement…"
+        [value]="filter().search ?? ''"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </label>
+    <select
+      class="select"
+      aria-label="Type"
+      (change)="update({ type: $any($event.target).value || null })"
+    >
+      <option value="">Tous les types</option>
+      @for (t of types; track t) {
+        <option [value]="t" [selected]="filter().type === t">{{ typeLabels[t] }}</option>
+      }
+    </select>
+    <select
+      class="select"
+      aria-label="État"
+      (change)="update({ status: $any($event.target).value || null })"
+    >
+      <option value="">Tous les états</option>
+      @for (s of statuses; track s) {
+        <option [value]="s" [selected]="filter().status === s">{{ statusLabels[s] }}</option>
+      }
+    </select>
+    @if (filtered()) {
+      <button type="button" class="btn btn--ghost btn--sm" (click)="reset()">
+        <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" /> Réinitialiser
+      </button>
+    }
+  </section>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state
+        title="Inventaire indisponible"
+        description="Les équipements n’ont pas pu être chargés."
+        [icon]="icons.TriangleAlert"
+      >
+        <button type="button" class="btn btn--primary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else {
+    <section class="card list">
+      @if (page(); as p) {
+        @if (p.content.length === 0) {
+          @if (filtered()) {
+            <nx-empty-state
+              title="Aucun équipement ne correspond"
+              description="Essayez une autre recherche ou retirez des filtres."
+              [icon]="icons.SearchX"
+            >
+              <button type="button" class="btn btn--secondary" (click)="reset()">
+                Réinitialiser les filtres
+              </button>
+            </nx-empty-state>
+          } @else {
+            <nx-empty-state
+              [title]="employee() ? 'Aucun équipement à votre nom' : 'Aucun équipement'"
+              [description]="
+                employee()
+                  ? 'Le matériel que le service informatique vous remet apparaîtra ici.'
+                  : 'Ajoutez le premier équipement du parc.'
+              "
+              [icon]="icons.Monitor"
+            />
+          }
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th scope="col">Code</th>
+                  <th scope="col">Équipement</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">État</th>
+                  <th scope="col">Détenteur / emplacement</th>
+                  <th scope="col">Garantie</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (e of p.content; track e.id) {
+                  <tr (click)="open(e)">
+                    <td>
+                      <a
+                        class="mono"
+                        [routerLink]="['/equipment', e.id]"
+                        (click)="$event.stopPropagation()"
+                        >{{ e.inventoryCode }}</a
+                      >
+                    </td>
+                    <td>
+                      <span class="block">{{ e.name }}</span>
+                      @if (e.brand || e.model) {
+                        <span class="muted small">{{ e.brand }} {{ e.model }}</span>
+                      }
+                    </td>
+                    <td>
+                      <span class="type">
+                        <lucide-icon [img]="typeIcons[e.type]" [size]="16" aria-hidden="true" />
+                        {{ typeLabels[e.type] }}
+                      </span>
+                    </td>
+                    <td>
+                      <span [class]="'badge badge--' + statusTones[e.status]">{{
+                        statusLabels[e.status]
+                      }}</span>
+                    </td>
+                    <td>
+                      @if (e.assignedUser; as holder) {
+                        <span class="who">
+                          <nx-avatar
+                            [name]="holder.fullName"
+                            [color]="holder.avatarColor"
+                            [size]="24"
+                          />
+                          {{ holder.fullName }}
+                        </span>
+                      } @else if (e.location) {
+                        {{ e.location }}
+                        @if (e.shared) {
+                          <span class="muted small"> (partagé)</span>
+                        }
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td>
+                      @if (e.warrantyEndDate) {
+                        <span [class.muted]="!e.underWarranty">{{
+                          exactDate(e.warrantyEndDate)
+                        }}</span>
+                        @if (!e.underWarranty) {
+                          <span class="muted small"> (expirée)</span>
+                        }
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <nx-paginator
+            [page]="p.page"
+            [size]="p.size"
+            [total]="p.totalElements"
+            itemLabel="équipement"
+            itemsLabel="équipements"
+            (pageChange)="goTo($event)"
+          />
+        }
+      } @else {
+        <nx-skeleton height="44px" [lines]="8" />
+      }
+    </section>
+  }
+</div>

@@ -90,6 +90,25 @@ export const routes: Routes = [
         title: 'NexaDesk · Mes interventions',
       },
       {
+        path: 'equipment',
+        children: [
+          {
+            path: '',
+            loadComponent: () =>
+              import('./features/equipment/equipment.page').then((m) => m.EquipmentPage),
+            title: 'NexaDesk · Équipements',
+          },
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./features/equipment/equipment-detail.page').then(
+                (m) => m.EquipmentDetailPage,
+              ),
+            title: 'NexaDesk · Équipement',
+          },
+        ],
+      },
+      {
         path: 'users',
         canMatch: [roleGuard('ADMIN')],
         children: [
