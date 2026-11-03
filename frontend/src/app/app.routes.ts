@@ -109,6 +109,12 @@ export const routes: Routes = [
         ],
       },
       {
+        path: 'reports',
+        canMatch: [roleGuard('TECHNICIAN', 'ADMIN')],
+        loadChildren: () =>
+          import('./features/reports/reports.routes').then((m) => m.REPORT_ROUTES),
+      },
+      {
         path: 'users',
         canMatch: [roleGuard('ADMIN')],
         children: [

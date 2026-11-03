@@ -1,0 +1,27 @@
+// Report page: filters bar and export buttons (the rest comes from the dashboard styles).
+
+.exports {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+
+  .field {
+    min-width: 160px;
+  }
+}
+
+.reset {
+  margin-bottom: 4px;
+}
+
+.period-error {
+  flex-basis: 100%;
+  margin: 0;
+}

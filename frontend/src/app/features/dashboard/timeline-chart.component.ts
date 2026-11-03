@@ -6,12 +6,30 @@ import {
   inject,
   input,
 } from '@angular/core';
-import { ChartConfiguration } from 'chart.js';
-import { BaseChartDirective } from 'ng2-charts';
+import {
+  CategoryScale,
+  ChartConfiguration,
+  LineController,
+  LineElement,
+  LinearScale,
+  PointElement,
+  Tooltip,
+} from 'chart.js';
+import { BaseChartDirective, provideCharts } from 'ng2-charts';
 
 import { ThemeService } from '../../core/services/theme.service';
 import { bucketLabel } from './dashboard.format';
 import { TimelinePoint } from './dashboard.models';
+
+/**
+ * Chart.js parts the timeline uses, provided by the lazy routes that show it: Chart.js is downloaded with those
+ * pages, not with the application shell.
+ */
+export function provideTimelineChart(): ReturnType<typeof provideCharts> {
+  return provideCharts({
+    registerables: [LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip],
+  });
+}
 
 interface Palette {
   created: string;

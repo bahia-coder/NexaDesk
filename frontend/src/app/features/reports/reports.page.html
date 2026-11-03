@@ -1,0 +1,283 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page-title">{{ admin() ? 'Rapports' : 'Mes statistiques' }}</h1>
+      @if (report(); as r) {
+        <p class="muted">
+          Du {{ day(r.scope.from) }} au {{ day(r.scope.to) }}
+          @if (r.scope.categoryName) {
+            · {{ r.scope.categoryName }}
+          }
+          @if (admin() && r.scope.technicianName) {
+            · {{ r.scope.technicianName }}
+          }
+        </p>
+      } @else {
+        <p class="muted">Activité du support sur la période choisie.</p>
+      }
+    </div>
+    @if (admin()) {
+      <div class="exports">
+        <button
+          type="button"
+          class="btn btn--secondary"
+          [disabled]="exporting() !== null || !report()"
+          (click)="download('xlsx')"
+        >
+          @if (exporting() === 'xlsx') {
+            <nx-spinner />
+          } @else {
+            <lucide-icon [img]="icons.FileSpreadsheet" [size]="16" aria-hidden="true" />
+          }
+          Excel
+        </button>
+        <button
+          type="button"
+          class="btn btn--secondary"
+          [disabled]="exporting() !== null || !report()"
+          (click)="download('pdf')"
+        >
+          @if (exporting() === 'pdf') {
+            <nx-spinner />
+          } @else {
+            <lucide-icon [img]="icons.FileText" [size]="16" aria-hidden="true" />
+          }
+          PDF
+        </button>
+      </div>
+    }
+  </header>
+
+  <section class="filters card" aria-label="Filtres">
+    <label class="field">
+      <span class="field__label">Du</span>
+      <input
+        #fromInput
+        class="input"
+        type="date"
+        [value]="from()"
+        (change)="setPeriod(fromInput.value, toInput.value)"
+      />
+    </label>
+    <label class="field">
+      <span class="field__label">Au</span>
+      <input
+        #toInput
+        class="input"
+        type="date"
+        [value]="to()"
+        (change)="setPeriod(fromInput.value, toInput.value)"
+      />
+    </label>
+    <label class="field">
+      <span class="field__label">Catégorie</span>
+      <select class="select" (change)="update({ categoryId: $any($event.target).value || null })">
+        <option value="">Toutes</option>
+        @for (c of categories(); track c.id) {
+          <option [value]="c.id" [selected]="filter().categoryId === c.id">{{ c.name }}</option>
+        }
+      </select>
+    </label>
+    @if (admin()) {
+      <label class="field">
+        <span class="field__label">Technicien</span>
+        <select
+          class="select"
+          (change)="update({ technicianId: $any($event.target).value || null })"
+        >
+          <option value="">Tous</option>
+          @for (t of technicians(); track t.id) {
+            <option [value]="t.id" [selected]="filter().technicianId === t.id">
+              {{ t.fullName }}{{ t.active ? '' : ' (désactivé)' }}
+            </option>
+          }
+        </select>
+      </label>
+    }
+    @if (filtered()) {
+      <button type="button" class="btn btn--ghost btn--sm reset" (click)="reset()">
+        <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" /> 90 derniers jours
+      </button>
+    }
+    @if (periodError(); as message) {
+      <p class="field__error period-error" role="alert">{{ message }}</p>
+    }
+  </section>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state
+        title="Rapport indisponible"
+        description="Le rapport n’a pas pu être calculé pour ces filtres."
+        [icon]="icons.TriangleAlert"
+      >
+        <button type="button" class="btn btn--primary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else {
+    @let r = report();
+    <section class="kpis" aria-label="Synthèse">
+      <nx-stat-card
+        label="Tickets créés"
+        [value]="r?.summary?.created ?? 0"
+        [icon]="icons.Ticket"
+        tone="indigo"
+        [loading]="!r"
+      />
+      <nx-stat-card
+        label="Tickets résolus"
+        [value]="r?.summary?.resolved ?? 0"
+        [icon]="icons.CircleCheck"
+        tone="success"
+        hint="Résolus pendant la période"
+        [loading]="!r"
+      />
+      <nx-stat-card
+        label="Taux de résolution"
+        [value]="format.formatPercent(r?.summary?.resolutionRate ?? null)"
+        [icon]="icons.Percent"
+        tone="violet"
+        hint="Part des tickets créés déjà résolus"
+        [loading]="!r"
+      />
+      <nx-stat-card
+        label="Temps moyen de résolution"
+        [value]="format.formatHours(r?.summary?.avgResolutionHours ?? null)"
+        [icon]="icons.Clock"
+        tone="blue"
+        hint="De la création à la résolution"
+        [loading]="!r"
+      />
+    </section>
+
+    <div class="grid grid--wide">
+      <section class="card panel" aria-labelledby="monthly-title">
+        <h2 id="monthly-title" class="card__title">Évolution mensuelle</h2>
+        @if (r) {
+          <nx-timeline-chart [points]="r.monthly" granularity="MONTH" />
+        } @else {
+          <nx-skeleton height="260px" />
+        }
+      </section>
+      <section class="card panel" aria-labelledby="priority-title">
+        <h2 id="priority-title" class="card__title">Créés par priorité</h2>
+        @if (r) {
+          <nx-bar-list [items]="byPriority()" label="Tickets créés par priorité" />
+        } @else {
+          <nx-skeleton height="18px" [lines]="4" />
+        }
+      </section>
+    </div>
+
+    <div class="grid grid--thirds">
+      <section class="card panel" aria-labelledby="sla-title">
+        <h2 id="sla-title" class="card__title">Respect des SLA</h2>
+        @if (r) {
+          <div class="meter">
+            <div class="meter__head">
+              <span>Première réponse</span>
+              <strong>{{ format.formatPercent(r.summary.sla.firstResponseRate) }}</strong>
+            </div>
+            <span class="meter__track"
+              ><span
+                class="meter__fill"
+                [style.width.%]="r.summary.sla.firstResponseRate ?? 0"
+              ></span
+            ></span>
+          </div>
+          <div class="meter">
+            <div class="meter__head">
+              <span>Résolution</span>
+              <strong>{{ format.formatPercent(r.summary.sla.resolutionRate) }}</strong>
+            </div>
+            <span class="meter__track"
+              ><span class="meter__fill" [style.width.%]="r.summary.sla.resolutionRate ?? 0"></span
+            ></span>
+          </div>
+          <p class="muted small">
+            Mesuré sur {{ r.summary.sla.resolvedMeasured }} tickets résolus.
+          </p>
+        } @else {
+          <nx-skeleton height="18px" [lines]="4" />
+        }
+      </section>
+
+      <section class="card panel" aria-labelledby="csat-title">
+        <h2 id="csat-title" class="card__title">Satisfaction</h2>
+        @if (r) {
+          <p class="csat">
+            <lucide-icon [img]="icons.Star" [size]="22" aria-hidden="true" />
+            <strong>{{ format.formatRating(r.satisfaction.average) }}</strong>
+            <span class="muted">/ 5 · {{ r.satisfaction.count }} avis</span>
+          </p>
+          <nx-bar-list [items]="ratings()" label="Répartition des notes" emptyText="Aucun avis." />
+        } @else {
+          <nx-skeleton height="18px" [lines]="5" />
+        }
+      </section>
+
+      <section class="card panel" aria-labelledby="category-title">
+        <h2 id="category-title" class="card__title">Créés par catégorie</h2>
+        @if (r) {
+          <nx-bar-list
+            [items]="byCategory()"
+            label="Tickets créés par catégorie"
+            [hideZero]="true"
+          />
+        } @else {
+          <nx-skeleton height="18px" [lines]="5" />
+        }
+      </section>
+    </div>
+
+    <section class="card panel" aria-labelledby="tech-title">
+      <h2 id="tech-title" class="card__title">
+        {{ admin() ? 'Performance des techniciens' : 'Ma performance' }}
+      </h2>
+      @if (r) {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Technicien</th>
+                <th scope="col" class="num">En cours</th>
+                <th scope="col" class="num">Résolus</th>
+                <th scope="col" class="num">Temps moyen</th>
+                <th scope="col" class="num">SLA</th>
+                <th scope="col" class="num">Note</th>
+                <th scope="col" class="num">Temps saisi</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of r.byTechnician; track t.id) {
+                <tr>
+                  <th scope="row">
+                    <span class="who">
+                      <nx-avatar [name]="t.fullName" [color]="t.avatarColor" [size]="28" />
+                      {{ t.fullName }}
+                    </span>
+                  </th>
+                  <td class="num">{{ t.openAssigned }}</td>
+                  <td class="num">{{ t.resolved }}</td>
+                  <td class="num">{{ format.formatHours(t.avgResolutionHours) }}</td>
+                  <td class="num">{{ format.formatPercent(t.slaRate) }}</td>
+                  <td class="num">{{ format.formatRating(t.avgRating) }}</td>
+                  <td class="num">{{ format.formatMinutes(t.minutesLogged) }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="7" class="muted">Aucune activité de technicien sur la période.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="muted small">Rapport calculé le {{ exact(r.generatedAt) }}.</p>
+      } @else {
+        <nx-skeleton height="28px" [lines]="5" />
+      }
+    </section>
+  }
+</div>
