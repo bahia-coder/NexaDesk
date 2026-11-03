@@ -268,9 +268,22 @@ class KnowledgeAndAiIntegrationTest {
                 .andExpect(status().isOk()));
         assertThat(answer.get("source").asText()).isEqualTo("HEURISTIC");
         assertThat(answer.get("answer").isNull()).as("no model, no generated text").isTrue();
+        assertThat(answer.get("responseMode").asText()).isEqualTo("KNOWLEDGE_BASE");
+        assertThat(answer.get("confidence").isNull()).isTrue();
         assertThat(answer.get("articles").get(0).get("article").get("id").asLong()).isEqualTo(articleId);
 
         call(employee, post("/api/ai/assistant"), Map.of("question", "")).andExpect(status().isBadRequest());
+
+        // Browsing by theme: only published articles are counted, for every role.
+        JsonNode themes = body(call(employee, get("/api/knowledge/categories")).andExpect(status().isOk()));
+        JsonNode theme = null;
+        for (JsonNode t : themes) {
+            if (t.get("category").get("id").asLong() == categoryId) {
+                theme = t;
+            }
+        }
+        assertThat(theme).isNotNull();
+        assertThat(theme.get("articles").asLong()).isEqualTo(1);
 
         // A short follow-up borrows the previous question; an unrelated question is searched on its own.
         List<Map<String, String>> history = List.of(
@@ -283,6 +296,7 @@ class KnowledgeAndAiIntegrationTest {
                 Map.of("question", "Comment commander un nouveau bureau en bois massif ?", "history", history))
                 .andExpect(status().isOk()));
         assertThat(unrelated.get("articles")).isEmpty();
+        assertThat(unrelated.get("responseMode").asText()).as("no model to fall back on").isEqualTo("NO_ANSWER");
         assertThat(unrelated.get("suggestTicket").asBoolean()).isTrue();
     }
 

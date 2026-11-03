@@ -49,12 +49,20 @@
         <span class="sr-only">Assistant :</span>
         @if (e.reply; as r) {
           <div class="reply__meta">
+            <span [class]="'badge badge--' + modes[r.responseMode].tone">{{
+              modes[r.responseMode].label
+            }}</span>
             <nx-ai-source-badge [source]="r.source" [disclaimer]="r.disclaimer" />
-            <span class="muted small">{{ r.disclaimer }}</span>
+            @if (r.confidence; as c) {
+              <span class="confidence" [attr.data-level]="c">{{ confidenceLabels[c] }}</span>
+            }
           </div>
+          <p class="muted small">{{ r.disclaimer }}</p>
 
           @if (r.answer) {
-            <nx-markdown-text [text]="r.answer" />
+            <div class="answer" [class.answer--fallback]="r.responseMode === 'AI_FALLBACK'">
+              <nx-markdown-text [text]="r.answer" />
+            </div>
           } @else if (r.articles.length) {
             <p>
               Voici les articles de la base de connaissances qui correspondent à votre question :
@@ -81,14 +89,12 @@
 
           @if (r.suggestTicket) {
             <div class="ticket-hint">
-              <p>
-                @if (r.articles.length === 0) {
-                  Aucun article de la base de connaissances ne couvre cette question.
-                } @else {
-                  Si ces articles ne règlent pas votre problème, le support peut prendre le relais.
-                }
-              </p>
-              <a class="btn btn--primary btn--sm" routerLink="/tickets/new">
+              <p>{{ modes[r.responseMode].ticketHint }}</p>
+              <a
+                class="btn btn--primary btn--sm"
+                routerLink="/tickets/new"
+                [queryParams]="{ title: ticketTitle(e.question) }"
+              >
                 <lucide-icon [img]="icons.TicketPlus" [size]="16" aria-hidden="true" /> Créer un
                 ticket
               </a>

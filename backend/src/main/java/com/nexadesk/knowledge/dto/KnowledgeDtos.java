@@ -40,6 +40,10 @@ public final class KnowledgeDtos {
     public record HelpfulDto(int helpfulCount, boolean helpedByMe) {
     }
 
+    /** A category of the knowledge base with its number of published articles (browsing tiles). */
+    public record CategoryCountDto(CategoryRefDto category, long articles) {
+    }
+
     /** All filters optional. {@code status} is only honoured for technicians (DRAFT = my drafts) and admins. */
     public record ArticleFilter(String search, Long categoryId, ArticleStatus status, ArticleSort sort) {
     }

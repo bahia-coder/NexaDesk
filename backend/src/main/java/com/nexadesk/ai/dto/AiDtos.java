@@ -68,10 +68,25 @@ public final class AiDtos {
     }
 
     /**
-     * {@code answer} is null when no model wrote one: the user then gets the matching articles.
-     * {@code suggestTicket}: nothing in the knowledge base covers the question.
+     * Where an assistant answer comes from, decided by the server from what was actually used.
+     * <ul>
+     *   <li>{@code KNOWLEDGE_BASE}: internal articles only (written by the model, or listed without one).</li>
+     *   <li>{@code HYBRID}: internal articles, completed by general advice kept in a separate part.</li>
+     *   <li>{@code AI_FALLBACK}: no article fits; the model's general IT knowledge, never shown with sources.</li>
+     *   <li>{@code NO_ANSWER}: no article fits and no model is connected to fall back on.</li>
+     * </ul>
      */
-    public record AssistantAnswerDto(AiSource source, String disclaimer, String answer,
-                                     List<ArticleMatchDto> articles, boolean suggestTicket) {
+    public enum ResponseMode { KNOWLEDGE_BASE, HYBRID, AI_FALLBACK, NO_ANSWER }
+
+    /** How sure the model is that the answer solves the problem; null when no model wrote it. */
+    public enum Confidence { LOW, MEDIUM, HIGH }
+
+    /**
+     * {@code answer} is null when no model wrote one: the user then gets the matching articles.
+     * {@code articles} are the sources actually used, and only those (empty for {@code AI_FALLBACK}).
+     * {@code suggestTicket}: the user may need a technician.
+     */
+    public record AssistantAnswerDto(AiSource source, String disclaimer, ResponseMode responseMode, String answer,
+                                     List<ArticleMatchDto> articles, Confidence confidence, boolean suggestTicket) {
     }
 }

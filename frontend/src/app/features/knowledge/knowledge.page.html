@@ -1,142 +1,220 @@
-<div class="page">
-  <header class="page__header">
-    <div>
-      <h1 class="page-title">Base de connaissances</h1>
-      @if (page(); as p) {
-        <p class="muted">{{ p.totalElements }} article{{ p.totalElements > 1 ? 's' : '' }}</p>
+<div class="page kb">
+  <section class="kb-hero" aria-labelledby="kb-title">
+    <div class="kb-hero__head">
+      <div>
+        <h1 id="kb-title" class="kb-hero__title">Base de connaissances</h1>
+        <p class="kb-hero__lead">
+          Des solutions aux problèmes courants, rédigées et vérifiées par le support informatique.
+        </p>
+      </div>
+      @if (staff()) {
+        <a class="btn btn--primary" routerLink="/knowledge/new">
+          <lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" /> Nouvel article
+        </a>
       }
     </div>
-    @if (staff()) {
-      <a class="btn btn--primary" routerLink="/knowledge/new">
-        <lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" /> Nouvel article
-      </a>
-    }
-  </header>
 
-  <section class="filters card" aria-label="Filtres">
-    <label class="search">
-      <lucide-icon [img]="icons.Search" [size]="16" aria-hidden="true" />
-      <span class="sr-only">Rechercher</span>
+    <form class="kb-search" role="search" (submit)="$event.preventDefault()">
+      <lucide-icon [img]="icons.Search" [size]="20" aria-hidden="true" />
+      <label class="sr-only" for="kb-search-input">Rechercher dans la base de connaissances</label>
       <input
-        class="input"
+        #searchInput
+        id="kb-search-input"
+        class="kb-search__input"
         type="search"
+        autocomplete="off"
         placeholder="Décrivez votre problème : « VPN erreur 809 », « imprimante bloquée »…"
         [value]="filter().search ?? ''"
-        (input)="onSearch($any($event.target).value)"
+        (input)="onSearch(searchInput.value)"
       />
-    </label>
-    <select
-      class="select"
-      aria-label="Catégorie"
-      (change)="update({ categoryId: $any($event.target).value || null })"
-    >
-      <option value="">Toutes les catégories</option>
-      @for (c of categories(); track c.id) {
-        <option [value]="c.id" [selected]="filter().categoryId === c.id">{{ c.name }}</option>
+      @if (filter().search) {
+        <button
+          type="button"
+          class="btn btn--ghost btn--icon btn--sm"
+          aria-label="Effacer la recherche"
+          (click)="clearSearch(searchInput)"
+        >
+          <lucide-icon [img]="icons.X" [size]="16" aria-hidden="true" />
+        </button>
       }
-    </select>
-    @if (staff()) {
-      <select
-        class="select"
-        aria-label="État"
-        (change)="update({ status: $any($event.target).value || null })"
+    </form>
+
+    <p class="kb-hero__alt">
+      Pas de réponse ?
+      <a routerLink="/assistant" [queryParams]="{ q: filter().search || null }">
+        <lucide-icon [img]="icons.Sparkles" [size]="14" aria-hidden="true" /> Demander à
+        l’assistant</a
       >
-        <option value="">Tous les états</option>
-        @for (o of statusOptions(); track o.value) {
-          <option [value]="o.value" [selected]="filter().status === o.value">{{ o.label }}</option>
-        }
-      </select>
-    }
-    <select class="select" aria-label="Tri" (change)="update({ sort: $any($event.target).value })">
-      @for (s of sorts; track s) {
-        @if (s !== 'RELEVANCE' || filter().search) {
-          <option [value]="s" [selected]="sort() === s">{{ sortLabels[s] }}</option>
-        }
-      }
-    </select>
-    @if (filtered()) {
-      <button type="button" class="btn btn--ghost btn--sm" (click)="reset()">
-        <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" /> Réinitialiser
-      </button>
-    }
+      ou
+      <a routerLink="/tickets/new" [queryParams]="{ title: filter().search || null }"
+        >créer un ticket</a
+      >.
+    </p>
   </section>
 
-  @if (state().status === 'error') {
-    <div class="card">
-      <nx-empty-state
-        title="Base de connaissances indisponible"
-        description="Les articles n’ont pas pu être chargés."
-        [icon]="icons.TriangleAlert"
-      >
-        <button type="button" class="btn btn--primary" (click)="retry()">
-          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+  @if (staff()) {
+    <div class="tabs" role="tablist" aria-label="État des articles">
+      @for (t of statusTabs(); track t.label) {
+        <button
+          type="button"
+          role="tab"
+          class="tab"
+          [attr.aria-selected]="filter().status === t.value"
+          (click)="update({ status: t.value ?? null })"
+        >
+          {{ t.label }}
         </button>
-      </nx-empty-state>
+      }
     </div>
-  } @else {
-    <section class="card list">
-      @if (page(); as p) {
-        @if (p.content.length === 0) {
-          @if (filtered()) {
-            <nx-empty-state
-              title="Aucun article ne correspond"
-              description="Essayez d’autres mots, ou créez un ticket : le support vous répondra."
-              [icon]="icons.SearchX"
-            >
-              <a class="btn btn--secondary" routerLink="/tickets/new">Créer un ticket</a>
-            </nx-empty-state>
-          } @else {
+  }
+
+  @if (browsing()) {
+    <section class="kb-section" aria-labelledby="themes-title">
+      <h2 id="themes-title" class="kb-section__title">Parcourir par thème</h2>
+      @if (themes(); as list) {
+        <div class="themes">
+          @for (t of list; track t.category.id) {
+            <button type="button" class="theme" (click)="update({ categoryId: t.category.id })">
+              <span class="theme__icon" aria-hidden="true">
+                <lucide-icon [img]="icon(t.category.icon)" [size]="22" />
+              </span>
+              <span class="theme__name">{{ t.category.name }}</span>
+              <span class="theme__count"
+                >{{ t.articles }} article{{ t.articles > 1 ? 's' : '' }}</span
+              >
+            </button>
+          }
+        </div>
+      } @else if (themes() === undefined) {
+        <nx-skeleton height="92px" [lines]="1" />
+      }
+    </section>
+
+    @if (popular()?.length) {
+      <section class="kb-section" aria-labelledby="popular-title">
+        <h2 id="popular-title" class="kb-section__title">
+          <lucide-icon [img]="icons.TrendingUp" [size]="18" aria-hidden="true" /> Les plus consultés
+        </h2>
+        <div class="cards cards--grid">
+          @for (a of popular(); track a.id) {
+            <nx-article-card [article]="a" [compact]="true" />
+          }
+        </div>
+      </section>
+    }
+  }
+
+  <section class="kb-section" aria-labelledby="list-title">
+    <div class="results-bar">
+      <h2 id="list-title" class="kb-section__title">
+        @if (filter().search) {
+          Résultats pour « {{ filter().search }} »
+        } @else if (activeTheme(); as theme) {
+          <lucide-icon [img]="icon(theme.icon)" [size]="18" aria-hidden="true" /> {{ theme.name }}
+        } @else {
+          {{ browsing() ? 'Tous les articles' : 'Articles' }}
+        }
+        @if (page(); as p) {
+          <span class="results-bar__count">{{ p.totalElements }}</span>
+        }
+      </h2>
+      <div class="results-bar__tools">
+        @if (activeTheme(); as theme) {
+          @if (filter().search) {
+            <span class="chip">
+              {{ theme.name }}
+              <button
+                type="button"
+                class="chip__remove"
+                aria-label="Retirer le filtre de thème"
+                (click)="update({ categoryId: null })"
+              >
+                <lucide-icon [img]="icons.X" [size]="12" aria-hidden="true" />
+              </button>
+            </span>
+          }
+        }
+        @if (!browsing()) {
+          <button type="button" class="btn btn--ghost btn--sm" (click)="reset()">
+            <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" /> Tout afficher
+          </button>
+        }
+        <label class="sort">
+          <span class="sr-only">Trier par</span>
+          <select class="select" (change)="update({ sort: $any($event.target).value })">
+            @for (s of sorts; track s) {
+              @if (s !== 'RELEVANCE' || filter().search) {
+                <option [value]="s" [selected]="sort() === s">{{ sortLabels[s] }}</option>
+              }
+            }
+          </select>
+        </label>
+      </div>
+    </div>
+
+    @if (state().status === 'error') {
+      <div class="card">
+        <nx-empty-state
+          title="Base de connaissances indisponible"
+          description="Les articles n’ont pas pu être chargés."
+          [icon]="icons.TriangleAlert"
+        >
+          <button type="button" class="btn btn--primary" (click)="retry()">
+            <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+          </button>
+        </nx-empty-state>
+      </div>
+    } @else if (page(); as p) {
+      @if (p.content.length === 0) {
+        <div class="card">
+          @if (browsing()) {
             <nx-empty-state
               title="Aucun article pour l’instant"
               description="Les procédures rédigées par le support apparaîtront ici."
               [icon]="icons.BookOpen"
             />
+          } @else {
+            <nx-empty-state
+              title="Aucun article ne correspond"
+              description="L’assistant peut proposer une piste, ou le support prendre votre demande en charge."
+              [icon]="icons.SearchX"
+            >
+              <a
+                class="btn btn--primary"
+                routerLink="/assistant"
+                [queryParams]="{ q: filter().search || null }"
+              >
+                <lucide-icon [img]="icons.Sparkles" [size]="16" aria-hidden="true" /> Demander à
+                l’assistant
+              </a>
+              <a
+                class="btn btn--secondary"
+                routerLink="/tickets/new"
+                [queryParams]="{ title: filter().search || null }"
+              >
+                <lucide-icon [img]="icons.TicketPlus" [size]="16" aria-hidden="true" /> Créer un
+                ticket
+              </a>
+            </nx-empty-state>
           }
-        } @else {
-          <ul class="articles">
-            @for (a of p.content; track a.id) {
-              <li class="article-row">
-                <span class="article-row__title">
-                  <a [routerLink]="['/knowledge', a.id]">{{ a.title }}</a>
-                  @if (a.status !== 'PUBLISHED') {
-                    <span [class]="'badge badge--' + statusTones[a.status]">{{
-                      statusLabels[a.status]
-                    }}</span>
-                  }
-                </span>
-                <span class="muted">{{ a.summary }}</span>
-                <span class="meta">
-                  <span>{{ a.category.name }}</span>
-                  <span>Par {{ a.author.fullName }}</span>
-                  <span [attr.title]="exact(a.updatedAt)"
-                    >Mis à jour le {{ exact(a.updatedAt) }}</span
-                  >
-                  @if (a.status === 'PUBLISHED') {
-                    <span
-                      ><lucide-icon [img]="icons.Eye" [size]="12" aria-hidden="true" />
-                      {{ a.viewCount }} vue{{ a.viewCount > 1 ? 's' : '' }}</span
-                    >
-                    <span
-                      ><lucide-icon [img]="icons.ThumbsUp" [size]="12" aria-hidden="true" />
-                      {{ a.helpfulCount }}</span
-                    >
-                  }
-                </span>
-              </li>
-            }
-          </ul>
-          <nx-paginator
-            [page]="p.page"
-            [size]="p.size"
-            [total]="p.totalElements"
-            itemLabel="article"
-            itemsLabel="articles"
-            (pageChange)="goTo($event)"
-          />
-        }
+        </div>
       } @else {
-        <nx-skeleton height="56px" [lines]="6" />
+        <div class="cards">
+          @for (a of p.content; track a.id) {
+            <nx-article-card [article]="a" />
+          }
+        </div>
+        <nx-paginator
+          [page]="p.page"
+          [size]="p.size"
+          [total]="p.totalElements"
+          itemLabel="article"
+          itemsLabel="articles"
+          (pageChange)="goTo($event)"
+        />
       }
-    </section>
-  }
+    } @else {
+      <nx-skeleton height="96px" [lines]="4" />
+    }
+  </section>
 </div>

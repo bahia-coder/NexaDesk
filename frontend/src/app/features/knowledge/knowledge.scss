@@ -351,3 +351,30 @@
   color: var(--color-text-muted);
   text-align: right;
 }
+
+// Shared by the list and the article page (related articles).
+
+.kb-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.kb-section__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font: 600 1.0625rem/1.3 var(--font-sans);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cards--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}

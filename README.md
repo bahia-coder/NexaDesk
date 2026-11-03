@@ -137,7 +137,9 @@ L'application fonctionne entièrement sans IA. **Chaque réponse indique sa sour
 | Classification (catégorie, impact, urgence → priorité) | Mots-clés de chaque catégorie et formulations (« bloqué », « toute l'équipe ») | Réponse JSON validée ; la catégorie doit exister |
 | Résumé d'un ticket | Résumé extractif (faits du ticket), présenté comme « non IA » | Résumé rédigé |
 | Pistes de résolution | Solutions des tickets similaires résolus et articles | Étapes rédigées à partir de ces sources uniquement |
-| Assistant | Articles les plus pertinents | Réponse rédigée à partir des articles trouvés (RAG simple), articles cités |
+| Assistant | Articles au-dessus du score fiable, sans texte rédigé ; sinon « aucun article » (`NO_ANSWER`) | Le modèle juge quels articles répondent vraiment, puis rédige : `KNOWLEDGE_BASE` (articles seuls), `HYBRID` (articles + conseils généraux séparés) ou `AI_FALLBACK` (connaissances générales, sans source, signalé comme non validé par l'entreprise) |
+
+Chaque réponse de l'assistant porte `responseMode`, `confidence` (`LOW`, `MEDIUM`, `HIGH`, nulle sans modèle), les seuls articles réellement utilisés et `suggestTicket`. Les seuils de pertinence se règlent sans recompiler : `AI_ASSISTANT_CANDIDATE_MIN_SCORE` (0,08 : en dessous, l'article n'est pas montré au modèle) et `AI_ASSISTANT_RELIABLE_SCORE` (0,35 : à partir de là, un article est listé même sans modèle). Le mode choisi est journalisé (`Assistant answer: mode=…`), sans le texte de la question.
 
 Configuration (variables d'environnement, jamais dans Git) :
 

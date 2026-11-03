@@ -54,11 +54,24 @@ export interface ChatTurn {
  * Knowledge-base assistant. `answer` is null when no model wrote one: the user then gets the matching articles.
  * `suggestTicket`: nothing in the knowledge base covers the question.
  */
+/**
+ * Where an assistant answer comes from, set by the server from the articles actually used:
+ * KNOWLEDGE_BASE (internal articles), HYBRID (articles + general advice kept apart), AI_FALLBACK (the model's
+ * general knowledge, without sources), NO_ANSWER (nothing fits and no model to fall back on).
+ */
+export type ResponseMode = 'KNOWLEDGE_BASE' | 'HYBRID' | 'AI_FALLBACK' | 'NO_ANSWER';
+
+export type Confidence = 'LOW' | 'MEDIUM' | 'HIGH';
+
 export interface AssistantAnswer {
   source: AiSource;
   disclaimer: string;
+  responseMode: ResponseMode;
   answer: string | null;
+  /** The sources actually used, and only those (empty for AI_FALLBACK). */
   articles: ArticleMatch[];
+  /** Null when no model wrote the answer. */
+  confidence: Confidence | null;
   suggestTicket: boolean;
 }
 

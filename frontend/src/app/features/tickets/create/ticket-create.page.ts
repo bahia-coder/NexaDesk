@@ -98,6 +98,8 @@ export class TicketCreatePage {
 
   /** ?equipmentId= from a device page ("Signaler un incident"): preselected if the user may pick it. */
   readonly equipmentId = input<string>();
+  /** ?title= from the assistant ("Créer un ticket"): the question asked, kept as an editable title. */
+  readonly title = input<string>();
 
   protected readonly step = signal<1 | 2 | 3>(1);
 
@@ -173,6 +175,17 @@ export class TicketCreatePage {
         ),
       )
       .subscribe((result) => this.similar.set(result));
+
+    effect(() => {
+      const title = this.title()?.trim().slice(0, 150);
+      if (title) {
+        untracked(() => {
+          if (!this.form.controls.title.value) {
+            this.form.controls.title.setValue(title);
+          }
+        });
+      }
+    });
 
     effect(() => {
       const wanted = Number(this.equipmentId());

@@ -131,6 +131,7 @@ class LlmClientsTest {
                 Duration.ofSeconds(5), mapper);
 
         assertThat(client.complete(REQUEST)).isEqualTo("{\"answer\":\"ok\"}");
+        assertThat(client.provider()).as("users are told which server answers").isEqualTo("127.0.0.1");
         JsonNode body = requestBody.get();
         assertThat(requestPath.get()).isEqualTo("/v1/chat/completions");
         assertThat(requestHeaders.get().get("authorization")).isEqualTo("Bearer local-key");

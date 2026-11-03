@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { of } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
@@ -11,6 +12,7 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { TicketDetail } from '../tickets/tickets.models';
 import { ArticleEditorPage } from './article-editor.page';
 import { ArticlePage } from './article.page';
+import { KnowledgePage } from './knowledge.page';
 import { KnowledgeArticle } from './knowledge.models';
 import { TicketKnowledgeComponent } from './ticket-knowledge.component';
 
@@ -46,7 +48,7 @@ describe('Knowledge base', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([]),
+        provideRouter([{ path: 'knowledge', component: KnowledgePage }]),
         {
           provide: AuthService,
           useValue: {
@@ -66,6 +68,48 @@ describe('Knowledge base', () => {
     return Array.from(el.querySelectorAll(selector)).map((b) => (b.textContent ?? '').trim());
   }
 
+  function page(content: KnowledgeArticle[]) {
+    return { content, page: 0, size: 12, totalElements: content.length, totalPages: 1 };
+  }
+
+  it('offers themes and the most read articles, then only results once the user searches', async () => {
+    role.set('EMPLOYEE');
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/knowledge');
+    http.expectOne('/api/knowledge/categories').flush([
+      { category: { id: 1, name: 'Réseau & VPN', icon: 'wifi' }, articles: 3 },
+      { category: { id: 2, name: 'Impression', icon: 'printer' }, articles: 1 },
+    ]);
+    http
+      .expectOne((r) => r.url === '/api/knowledge' && r.params.get('sort') === 'POPULAR')
+      .flush(page([{ ...ARTICLE, status: 'PUBLISHED' }]));
+    http
+      .expectOne((r) => r.url === '/api/knowledge' && r.params.get('size') === '12')
+      .flush(page([{ ...ARTICLE, status: 'PUBLISHED' }]));
+    harness.detectChanges();
+    await harness.fixture.whenStable();
+    const el = harness.routeNativeElement as HTMLElement;
+    expect(
+      Array.from(el.querySelectorAll('.theme')).map(
+        (t) =>
+          `${t.querySelector('.theme__name')?.textContent?.trim()} · ${t.querySelector('.theme__count')?.textContent?.trim()}`,
+      ),
+    ).toEqual(['Réseau & VPN · 3 articles', 'Impression · 1 article']);
+    expect(el.textContent).toContain('Les plus consultés');
+    expect(el.querySelector('.tabs')).toBeNull();
+
+    await harness.navigateByUrl('/knowledge?search=imprimante');
+    const results = http.expectOne((r) => r.url === '/api/knowledge');
+    expect(results.request.params.get('search')).toBe('imprimante');
+    results.flush(page([]));
+    await harness.fixture.whenStable();
+    expect(el.querySelector('.themes')).toBeNull();
+    expect(el.textContent).toContain('Résultats pour « imprimante »');
+    expect(el.querySelector('a[href^="/assistant"]')?.getAttribute('href')).toBe(
+      '/assistant?q=imprimante',
+    );
+  });
+
   it('shows the actions the API allows, and publishes a draft', async () => {
     const fixture = TestBed.createComponent(ArticlePage);
     fixture.componentRef.setInput('id', '7');
@@ -83,47 +127,97 @@ describe('Knowledge base', () => {
     Array.from(el.querySelectorAll<HTMLButtonElement>('.actions button'))
       .find((b) => b.textContent?.includes('Publier'))!
       .click();
+    http.expectOne({ method: 'POST', url: '/api/knowledge/7/publish' }).flush({
+      ...ARTICLE,
+      status: 'PUBLISHED',
+      availableActions: ['EDIT', 'ARCHIVE', 'MARK_HELPFUL'],
+    });
+    await fixture.whenStable();
+    // Once published, the page looks for related articles (none here).
     http
-      .expectOne({ method: 'POST', url: '/api/knowledge/7/publish' })
+      .expectOne((r) => r.url === '/api/knowledge' && r.params.get('status') === 'PUBLISHED')
       .flush({
-        ...ARTICLE,
-        status: 'PUBLISHED',
-        availableActions: ['EDIT', 'ARCHIVE', 'MARK_HELPFUL'],
+        content: [],
+        page: 0,
+        size: 4,
+        totalElements: 0,
+        totalPages: 0,
       });
     await fixture.whenStable();
     expect(el.querySelector('.title-row .badge')).toBeNull();
     expect(buttons(el, '.actions .btn')).toEqual(['Modifier', 'Archiver']);
-    expect(el.textContent).toContain('Oui, il m’a aidé');
+    expect(el.querySelector('.feedback')?.textContent).toContain('Cet article vous a-t-il aidé ?');
   });
 
-  it('lets an employee say a published article helped, once', async () => {
+  it('shows an employee the outline, related articles and a way out when it did not help', async () => {
     role.set('EMPLOYEE');
     const fixture = TestBed.createComponent(ArticlePage);
     fixture.componentRef.setInput('id', '7');
     fixture.autoDetectChanges();
-    http
-      .expectOne('/api/knowledge/7')
-      .flush({
-        ...ARTICLE,
-        status: 'PUBLISHED',
-        sourceTicket: null,
-        availableActions: ['MARK_HELPFUL'],
-      });
+    http.expectOne('/api/knowledge/7').flush({
+      ...ARTICLE,
+      status: 'PUBLISHED',
+      sourceTicket: null,
+      availableActions: ['MARK_HELPFUL'],
+    });
+    await fixture.whenStable();
+    const related = http.expectOne((r) => r.url === '/api/knowledge');
+    expect(related.request.params.get('categoryId')).toBe('1');
+    related.flush({
+      content: [
+        { ...ARTICLE, status: 'PUBLISHED' },
+        { ...ARTICLE, id: 8, title: 'Wi-Fi instable en salle de réunion', status: 'PUBLISHED' },
+      ],
+      page: 0,
+      size: 4,
+      totalElements: 2,
+      totalPages: 1,
+    });
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.actions')).toBeNull();
     expect(el.textContent).not.toContain('Tickets liés');
+    expect(el.querySelector('.reader__meta')?.textContent).toContain('1 min de lecture');
+    expect(
+      Array.from(el.querySelectorAll('nx-article-card .title')).map((a) => a.textContent),
+    ).toEqual(['Wi-Fi instable en salle de réunion']);
 
-    const helpful = Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
-      b.textContent?.includes('il m’a aidé'),
+    // "Non" sends nothing: it offers the assistant and a ticket about this article.
+    const no = Array.from(el.querySelectorAll<HTMLButtonElement>('.feedback button')).find(
+      (b) => b.textContent?.trim() === 'Non',
     )!;
-    helpful.click();
+    no.click();
+    await fixture.whenStable();
+    expect(el.querySelector('.feedback a[href^="/tickets/new"]')?.getAttribute('href')).toContain(
+      'title=',
+    );
+  });
+
+  it('records that an article helped, once', async () => {
+    role.set('EMPLOYEE');
+    const fixture = TestBed.createComponent(ArticlePage);
+    fixture.componentRef.setInput('id', '7');
+    fixture.autoDetectChanges();
+    http.expectOne('/api/knowledge/7').flush({
+      ...ARTICLE,
+      status: 'PUBLISHED',
+      availableActions: ['MARK_HELPFUL'],
+    });
+    await fixture.whenStable();
+    http
+      .expectOne((r) => r.url === '/api/knowledge')
+      .flush({ content: [], page: 0, size: 4, totalElements: 0, totalPages: 0 });
+    await fixture.whenStable();
+    const el = fixture.nativeElement as HTMLElement;
+    Array.from(el.querySelectorAll<HTMLButtonElement>('.feedback button'))
+      .find((b) => b.textContent?.trim() === 'Oui')!
+      .click();
     http
       .expectOne({ method: 'POST', url: '/api/knowledge/7/helpful' })
       .flush({ helpfulCount: 1, helpedByMe: true });
     await fixture.whenStable();
-    expect(helpful.disabled).toBe(true);
-    expect(helpful.textContent).toContain('Merci pour votre retour');
+    expect(el.querySelector('.feedback')?.textContent).toContain('Merci, cet article vous a aidé');
+    expect(el.querySelector('.feedback button')).toBeNull();
   });
 
   it('saves an edit with the version read, and shows the API’s field errors', async () => {

@@ -1,9 +1,6 @@
 <div class="page">
-  <a class="back" routerLink="/knowledge">
-    <lucide-icon [img]="icons.ArrowLeft" [size]="16" aria-hidden="true" /> Base de connaissances
-  </a>
-
   @if (state().status === 'error') {
+    <a class="back" routerLink="/knowledge">Base de connaissances</a>
     <div class="card">
       <nx-empty-state title="Article introuvable" [icon]="icons.TriangleAlert">
         <button type="button" class="btn btn--secondary" (click)="retry()">
@@ -12,21 +9,147 @@
       </nx-empty-state>
     </div>
   } @else if (article(); as a) {
-    <div class="layout">
-      <article class="card panel reader" aria-labelledby="article-title">
-        <div class="title-row">
-          <h1 id="article-title" class="page-title">{{ a.title }}</h1>
-          @if (a.status !== 'PUBLISHED') {
-            <span [class]="'badge badge--' + statusTones[a.status]">{{
-              statusLabels[a.status]
-            }}</span>
-          }
-        </div>
-        <p class="lead">{{ a.summary }}</p>
-        <nx-markdown-text [text]="a.content" />
-      </article>
+    <nav class="crumbs" aria-label="Fil d’Ariane">
+      <a routerLink="/knowledge">Base de connaissances</a>
+      <lucide-icon [img]="icons.ChevronRight" [size]="14" aria-hidden="true" />
+      <a routerLink="/knowledge" [queryParams]="{ categoryId: a.category.id }">{{
+        a.category.name
+      }}</a>
+      <lucide-icon [img]="icons.ChevronRight" [size]="14" aria-hidden="true" />
+      <span aria-current="page">{{ a.title }}</span>
+    </nav>
 
-      <aside class="stack">
+    <div class="layout">
+      <div class="stack">
+        <article class="card reader" aria-labelledby="article-title">
+          <header class="reader__head">
+            <span class="reader__category">
+              <lucide-icon [img]="icon()" [size]="16" aria-hidden="true" /> {{ a.category.name }}
+            </span>
+            <div class="title-row">
+              <h1 id="article-title" class="reader__title">{{ a.title }}</h1>
+              @if (a.status !== 'PUBLISHED') {
+                <span [class]="'badge badge--' + statusTones[a.status]">{{
+                  statusLabels[a.status]
+                }}</span>
+              }
+            </div>
+            <p class="lead">{{ a.summary }}</p>
+            <div class="reader__meta">
+              <span class="who">
+                <nx-avatar [name]="a.author.fullName" [color]="a.author.avatarColor" [size]="24" />
+                {{ a.author.fullName }}
+              </span>
+              <span>Mis à jour le {{ exact(a.updatedAt) }}</span>
+              <span
+                ><lucide-icon [img]="icons.Clock" [size]="14" aria-hidden="true" />
+                {{ minutes() }} min de lecture</span
+              >
+              @if (a.status === 'PUBLISHED') {
+                <span
+                  ><lucide-icon [img]="icons.Eye" [size]="14" aria-hidden="true" />
+                  {{ a.viewCount }} consultation{{ a.viewCount > 1 ? 's' : '' }}</span
+                >
+              }
+            </div>
+          </header>
+
+          <div class="reader__body">
+            <nx-markdown-text [text]="a.content" [anchorPrefix]="anchorPrefix" />
+          </div>
+
+          @if (can('MARK_HELPFUL')) {
+            <section class="feedback" aria-labelledby="feedback-title">
+              @if (a.helpedByMe) {
+                <p id="feedback-title" class="feedback__thanks">
+                  <lucide-icon [img]="icons.ThumbsUp" [size]="16" aria-hidden="true" /> Merci, cet
+                  article vous a aidé ({{ a.helpfulCount }} personne{{
+                    a.helpfulCount > 1 ? 's' : ''
+                  }}
+                  au total).
+                </p>
+              } @else if (notHelped()) {
+                <div class="feedback__help">
+                  <p id="feedback-title">
+                    Désolé que cet article n’ait pas suffi. L’assistant peut chercher une autre
+                    piste, ou le support prendre votre demande en charge.
+                  </p>
+                  <div class="feedback__actions">
+                    <a
+                      class="btn btn--secondary btn--sm"
+                      routerLink="/assistant"
+                      [queryParams]="{ q: a.title }"
+                    >
+                      <lucide-icon [img]="icons.Sparkles" [size]="14" aria-hidden="true" /> Demander
+                      à l’assistant
+                    </a>
+                    <a
+                      class="btn btn--primary btn--sm"
+                      routerLink="/tickets/new"
+                      [queryParams]="{ title: a.title }"
+                    >
+                      <lucide-icon [img]="icons.TicketPlus" [size]="14" aria-hidden="true" /> Créer
+                      un ticket
+                    </a>
+                  </div>
+                </div>
+              } @else {
+                <p id="feedback-title" class="feedback__question">Cet article vous a-t-il aidé ?</p>
+                <div class="feedback__actions">
+                  <button
+                    type="button"
+                    class="btn btn--secondary btn--sm"
+                    [disabled]="running() !== null"
+                    (click)="helpful(a)"
+                  >
+                    @if (running() === 'MARK_HELPFUL') {
+                      <nx-spinner [size]="14" />
+                    } @else {
+                      <lucide-icon [img]="icons.ThumbsUp" [size]="14" aria-hidden="true" />
+                    }
+                    Oui
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn--secondary btn--sm"
+                    (click)="notHelped.set(true)"
+                  >
+                    <lucide-icon [img]="icons.ThumbsDown" [size]="14" aria-hidden="true" /> Non
+                  </button>
+                </div>
+              }
+            </section>
+          }
+        </article>
+
+        @if (related().length) {
+          <section class="kb-section" aria-labelledby="related-title">
+            <h2 id="related-title" class="kb-section__title">Dans le même thème</h2>
+            <div class="cards cards--grid">
+              @for (r of related(); track r.id) {
+                <nx-article-card [article]="r" [compact]="true" />
+              }
+            </div>
+          </section>
+        }
+      </div>
+
+      <aside class="stack aside-sticky">
+        @if (outline().length > 1) {
+          <nav class="card panel toc" aria-label="Sur cette page">
+            <h2 class="card__title">Sur cette page</h2>
+            <ol>
+              @for (entry of outline(); track entry.id) {
+                <li>
+                  <button type="button" class="toc__link" (click)="scrollTo(entry.id)">
+                    {{ entry.text }}
+                  </button>
+                </li>
+              }
+            </ol>
+          </nav>
+        }
+
         @if (can('EDIT') || can('PUBLISH') || can('ARCHIVE')) {
           <section class="card panel">
             <h2 class="card__title">Actions</h2>
@@ -73,53 +196,16 @@
           </section>
         }
 
-        @if (can('MARK_HELPFUL')) {
+        @if (staff()) {
           <section class="card panel">
-            <h2 class="card__title">Cet article vous a-t-il aidé ?</h2>
-            <button
-              type="button"
-              class="btn btn--secondary"
-              [disabled]="a.helpedByMe || running() !== null"
-              (click)="helpful(a)"
-            >
-              @if (running() === 'MARK_HELPFUL') {
-                <nx-spinner />
-              } @else {
-                <lucide-icon [img]="icons.ThumbsUp" [size]="16" aria-hidden="true" />
+            <h2 class="card__title">Pour le support</h2>
+            <dl class="facts">
+              @if (a.publishedAt) {
+                <dt>Publié le</dt>
+                <dd>{{ exact(a.publishedAt) }}</dd>
               }
-              {{ a.helpedByMe ? 'Merci pour votre retour' : 'Oui, il m’a aidé' }}
-            </button>
-            <p class="muted small">
-              {{ a.helpfulCount }} personne{{ a.helpfulCount > 1 ? 's' : '' }} aidée{{
-                a.helpfulCount > 1 ? 's' : ''
-              }}. Sinon, <a routerLink="/tickets/new">créez un ticket</a>.
-            </p>
-          </section>
-        }
-
-        <section class="card panel">
-          <h2 class="card__title">À propos</h2>
-          <dl class="facts">
-            <dt>Catégorie</dt>
-            <dd>{{ a.category.name }}</dd>
-            <dt>Auteur</dt>
-            <dd>
-              <span class="who">
-                <nx-avatar [name]="a.author.fullName" [color]="a.author.avatarColor" [size]="24" />
-                {{ a.author.fullName }}
-              </span>
-            </dd>
-            @if (a.publishedAt) {
-              <dt>Publié le</dt>
-              <dd>{{ exact(a.publishedAt) }}</dd>
-            }
-            <dt>Mis à jour le</dt>
-            <dd>{{ exact(a.updatedAt) }}</dd>
-            @if (a.status === 'PUBLISHED') {
-              <dt>Consultations</dt>
-              <dd>{{ a.viewCount }}</dd>
-            }
-            @if (staff()) {
+              <dt>Personnes aidées</dt>
+              <dd>{{ a.helpfulCount }}</dd>
               <dt>Tickets liés</dt>
               <dd>{{ a.linkedTickets }}</dd>
               @if (a.sourceTicket; as source) {
@@ -128,13 +214,13 @@
                   <a class="mono" [routerLink]="['/tickets', source.id]">{{ source.reference }}</a>
                 </dd>
               }
-            }
-          </dl>
-        </section>
+            </dl>
+          </section>
+        }
       </aside>
     </div>
   } @else {
-    <nx-skeleton height="56px" width="50%" />
-    <nx-skeleton height="320px" />
+    <nx-skeleton height="20px" width="40%" />
+    <nx-skeleton height="360px" />
   }
 </div>

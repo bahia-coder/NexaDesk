@@ -5,6 +5,7 @@ import com.nexadesk.knowledge.dto.KnowledgeDtos.ArticleDto;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.ArticleFilter;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.ArticleRequest;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.ArticleSummaryDto;
+import com.nexadesk.knowledge.dto.KnowledgeDtos.CategoryCountDto;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.HelpfulDto;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.TicketLinksRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,6 +42,12 @@ public class KnowledgeController {
     public PageResponse<ArticleSummaryDto> list(@ParameterObject ArticleFilter filter,
                                                 @ParameterObject Pageable pageable) {
         return service.list(filter, pageable);
+    }
+
+    @GetMapping("/knowledge/categories")
+    @Operation(summary = "Catégories et nombre d'articles publiés", description = "Pour la navigation par thème.")
+    public List<CategoryCountDto> categories() {
+        return service.categoryCounts();
     }
 
     @GetMapping("/knowledge/{id}")

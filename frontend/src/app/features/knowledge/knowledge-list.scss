@@ -1,0 +1,218 @@
+// Knowledge base list page: search hero, themes, cards. ----------------------------------------------------------------------------
+
+.kb {
+  gap: var(--space-6);
+}
+
+.kb-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 100% 0%, var(--color-primary-subtle), transparent 55%),
+    var(--color-surface);
+
+  @media (width < 640px) {
+    padding: var(--space-5) var(--space-4);
+  }
+}
+
+.kb-hero__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.kb-hero__title {
+  margin: 0;
+  font: 700 1.75rem/1.2 var(--font-sans);
+  letter-spacing: -0.01em;
+}
+
+.kb-hero__lead {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}
+
+.kb-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 720px;
+  height: 52px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-muted);
+
+  &:focus-within {
+    border-color: var(--color-primary);
+    outline: 2px solid var(--color-primary-subtle);
+  }
+}
+
+.kb-search__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: 400 1rem/1 var(--font-sans);
+
+  &:focus {
+    outline: none;
+  }
+
+  &::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
+.kb-hero__alt {
+  margin: 0;
+  font: var(--text-small);
+  color: var(--color-text-muted);
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: calc(-1 * var(--space-2));
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.tab {
+  height: 40px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--color-text-muted);
+  font: 500 0.875rem/1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &[aria-selected='true'] {
+    border-bottom-color: var(--color-primary);
+    color: var(--color-text);
+  }
+}
+
+.themes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.theme {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-md);
+    outline: none;
+  }
+}
+
+.theme__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+}
+
+.theme__name {
+  font-weight: 600;
+}
+
+.theme__count {
+  font: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.results-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.results-bar__count {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--tone-slate-bg);
+  color: var(--tone-slate-text);
+  font: 500 0.75rem/1.6 var(--font-sans);
+}
+
+.results-bar__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+
+  .select {
+    width: auto;
+  }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 28px;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  font: var(--text-small);
+}
+
+.chip__remove {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface);
+  }
+}

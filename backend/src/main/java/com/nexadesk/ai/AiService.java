@@ -9,6 +9,8 @@ import com.nexadesk.ai.dto.AiDtos.AssistantRequest;
 import com.nexadesk.ai.dto.AiDtos.ChatRole;
 import com.nexadesk.ai.dto.AiDtos.ChatTurn;
 import com.nexadesk.ai.dto.AiDtos.ClassificationDto;
+import com.nexadesk.ai.dto.AiDtos.Confidence;
+import com.nexadesk.ai.dto.AiDtos.ResponseMode;
 import com.nexadesk.ai.dto.AiDtos.SimilarDto;
 import com.nexadesk.ai.dto.AiDtos.SimilarTicketDto;
 import com.nexadesk.ai.dto.AiDtos.SuggestionsDto;
@@ -28,9 +30,9 @@ import com.nexadesk.ticket.dto.TicketDtos.SubCategoryRefDto;
 import com.nexadesk.ticket.dto.TicketDtos.TicketDetailDto;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -61,11 +63,15 @@ public class AiService {
             + "l'heuristique locale, sans modèle d'IA.";
     static final String NO_SOURCE_DISCLAIMER = "Aucun article pertinent trouvé : le modèle d'IA n'a pas été "
             + "sollicité.";
+    static final String NO_ANSWER_DISCLAIMER = "Aucun article de la base de connaissances ne correspond.";
+    /** Opens every fallback answer: written by the server, so it never depends on the model. */
+    static final String FALLBACK_INTRO = "Je n'ai pas trouvé de solution correspondante dans la base de "
+            + "connaissances de votre entreprise. Voici une suggestion basée sur des connaissances générales en "
+            + "informatique, à vérifier avant de l'appliquer :";
 
     private static final int SIMILAR_LIMIT = 5;
     private static final int SUGGESTION_TICKETS = 5;
     private static final int SUGGESTION_ARTICLES = 3;
-    private static final int ASSISTANT_ARTICLES = 4;
     /** Up to this many words, a question that finds nothing alone is read as a follow-up. */
     static final int FOLLOW_UP_MAX_WORDS = 5;
 
@@ -79,12 +85,13 @@ public class AiService {
     private final InterventionService interventions;
     private final CurrentUser currentUser;
     private final AiProperties properties;
+    private final AssistantProperties assistantProperties;
     private final ZoneId zone;
 
     public AiService(AiRuntime runtime, AiRateLimiter rateLimiter, LlmJson llmJson, AiCatalog catalog,
                      SimilarityService similarity, TicketService tickets, TicketConversationService conversation,
                      InterventionService interventions, CurrentUser currentUser, AiProperties properties,
-                     @Value("${nexadesk.time-zone}") ZoneId zone) {
+                     AssistantProperties assistantProperties, @Value("${nexadesk.time-zone}") ZoneId zone) {
         this.runtime = runtime;
         this.rateLimiter = rateLimiter;
         this.llmJson = llmJson;
@@ -95,6 +102,7 @@ public class AiService {
         this.interventions = interventions;
         this.currentUser = currentUser;
         this.properties = properties;
+        this.assistantProperties = assistantProperties;
         this.zone = zone;
     }
 
@@ -217,46 +225,95 @@ public class AiService {
     // ---- Assistant ---------------------------------------------------------------------------------------
 
     /**
-     * Knowledge-base assistant (simple RAG): the most relevant published articles are retrieved with PostgreSQL,
-     * then the model answers from them only. Without a model, the articles themselves are the answer.
+     * IT assistant: RAG on the knowledge base, with a fallback on the model's general knowledge.
+     * <ol>
+     *   <li>Published articles from the candidate score are retrieved (PostgreSQL search).</li>
+     *   <li>The model judges which of them really answer the question, and writes the answer from them; when none
+     *       does, from its general IT knowledge. One call: the judgement and the answer come together.</li>
+     *   <li>The server sets the mode from the articles the model actually used, never from its claims:
+     *       {@link ResponseMode#KNOWLEDGE_BASE}, {@link ResponseMode#HYBRID} or {@link ResponseMode#AI_FALLBACK}.
+     *   </li>
+     * </ol>
+     * Without a model (or when it fails), only the articles above the reliable score are listed; there is no
+     * generated text and no fallback ({@link ResponseMode#NO_ANSWER} when nothing fits).
      */
     public AssistantAnswerDto assistant(AssistantRequest request) {
         List<ChatTurn> history = request.history() == null ? List.of() : request.history();
         String previous = history.stream().filter(turn -> turn.role() == ChatRole.USER)
                 .reduce((first, second) -> second).map(ChatTurn::content).orElse("");
-        List<RelatedArticle> articles = assistantArticles(request.question(), previous);
-        List<ArticleMatchDto> matches = matches(articles);
+        List<RelatedArticle> candidates = assistantArticles(request.question(), previous);
+
+        AssistantAnswerDto answer;
         if (runtime.mode() == AiSource.DISABLED) {
-            return new AssistantAnswerDto(AiSource.DISABLED, DISABLED_DISCLAIMER, null, matches, matches.isEmpty());
+            answer = localAnswer(candidates).dto(AiSource.DISABLED, DISABLED_DISCLAIMER);
+        } else {
+            Outcome<AssistantReply> outcome = generate(
+                    client -> modelAnswer(client, request.question(), history, candidates),
+                    () -> localAnswer(candidates),
+                    HEURISTIC_DISCLAIMER);
+            AssistantReply reply = outcome.value();
+            answer = reply.dto(outcome.source(), outcome.source() == AiSource.LLM
+                    ? assistantDisclaimer(reply.mode(), runtime.client().orElseThrow()) : outcome.disclaimer());
         }
-        if (articles.isEmpty()) {
-            return new AssistantAnswerDto(AiSource.HEURISTIC, runtime.mode() == AiSource.LLM ? NO_SOURCE_DISCLAIMER
-                    : HEURISTIC_DISCLAIMER, null, matches, true);
+        log.info("Assistant answer: mode={}, source={}, candidates={}, sources={}, bestScore={}",
+                answer.responseMode(), answer.source(), candidates.size(),
+                answer.articles().stream().map(m -> m.article().id()).toList(),
+                candidates.isEmpty() ? "-" : String.format(Locale.ROOT, "%.3f", candidates.getFirst().score()));
+        return answer;
+    }
+
+    /** The answer before the server adds who answered and the matching disclaimer. */
+    private record AssistantReply(ResponseMode mode, String text, List<ArticleMatchDto> sources,
+                                  Confidence confidence, boolean suggestTicket) {
+
+        AssistantAnswerDto dto(AiSource source, String disclaimer) {
+            return new AssistantAnswerDto(source, disclaimer, mode, text, sources, confidence, suggestTicket);
         }
-        Outcome<AiPrompts.Answer> outcome = generate(
-                client -> {
-                    List<LlmClient.Message> messages = new ArrayList<>(history.stream()
-                            .map(turn -> new LlmClient.Message(turn.role() == ChatRole.USER ? LlmClient.Role.USER
-                                    : LlmClient.Role.ASSISTANT, turn.content()))
-                            .toList());
-                    messages.add(user(AiPrompts.assistantInput(request.question(), articles)));
-                    AiPrompts.Answer answer = ask(client, AiPrompts.ASSISTANT_SYSTEM, alternate(messages),
-                            AiPrompts.ASSISTANT_SCHEMA, 4096, AiPrompts.Answer.class);
-                    requireKnown(answer.citedArticleIds(), articles.stream().map(a -> a.article().id()).toList());
-                    return answer;
-                },
-                () -> null,
-                HEURISTIC_DISCLAIMER);
-        AiPrompts.Answer answer = outcome.value();
-        if (answer == null) {
-            return new AssistantAnswerDto(outcome.source(), outcome.disclaimer(), null, matches, false);
+    }
+
+    private AssistantReply modelAnswer(LlmClient client, String question, List<ChatTurn> history,
+                                       List<RelatedArticle> candidates) {
+        List<LlmClient.Message> messages = new ArrayList<>(history.stream()
+                .map(turn -> new LlmClient.Message(turn.role() == ChatRole.USER ? LlmClient.Role.USER
+                        : LlmClient.Role.ASSISTANT, turn.content()))
+                .toList());
+        messages.add(user(AiPrompts.assistantInput(question, candidates)));
+        AiPrompts.Answer answer = ask(client, AiPrompts.ASSISTANT_SYSTEM, alternate(messages),
+                AiPrompts.ASSISTANT_SCHEMA, 4096, AiPrompts.Answer.class);
+        requireKnown(answer.usedArticleIds(), candidates.stream().map(a -> a.article().id()).toList());
+
+        Set<Long> used = new HashSet<>(answer.usedArticleIds());
+        List<RelatedArticle> sources = candidates.stream().filter(a -> used.contains(a.article().id())).toList();
+        if (sources.isEmpty()) {
+            // General knowledge only: the server says so itself, and never rates it as certain.
+            Confidence confidence = answer.confidence() == Confidence.HIGH ? Confidence.MEDIUM : answer.confidence();
+            return new AssistantReply(ResponseMode.AI_FALLBACK, FALLBACK_INTRO + "\n\n" + answer.answer(),
+                    List.of(), confidence, true);
         }
-        Set<Long> cited = new HashSet<>(answer.citedArticleIds());
-        List<ArticleMatchDto> ordered = matches.stream()
-                .sorted(Comparator.comparing((ArticleMatchDto m) -> !cited.contains(m.article().id())))
-                .toList();
-        return new AssistantAnswerDto(outcome.source(), outcome.disclaimer(), answer.answer(), ordered,
-                answer.suggestTicket());
+        return new AssistantReply(answer.usesGeneralKnowledge() ? ResponseMode.HYBRID : ResponseMode.KNOWLEDGE_BASE,
+                answer.answer(), matches(sources), answer.confidence(), answer.suggestTicket());
+    }
+
+    /** Without a model: only the articles a keyword search can be trusted on, as they are. */
+    private AssistantReply localAnswer(List<RelatedArticle> candidates) {
+        List<RelatedArticle> reliable = candidates.stream()
+                .filter(a -> a.score() >= assistantProperties.reliableScore()).toList();
+        return reliable.isEmpty()
+                ? new AssistantReply(ResponseMode.NO_ANSWER, null, List.of(), null, true)
+                : new AssistantReply(ResponseMode.KNOWLEDGE_BASE, null, matches(reliable), null, false);
+    }
+
+    private static String assistantDisclaimer(ResponseMode mode, LlmClient client) {
+        String model = "un modèle d'IA (" + client.provider() + " – " + client.model() + ")";
+        return switch (mode) {
+            case KNOWLEDGE_BASE -> "Réponse rédigée par " + model + " à partir de la documentation interne : "
+                    + "vérifiez avant d'appliquer.";
+            case HYBRID -> "Réponse de " + model + " : la documentation interne, complétée de conseils généraux "
+                    + "qui n'ont pas été validés par l'entreprise.";
+            case AI_FALLBACK -> "Suggestion de " + model + ", issue de connaissances générales : elle ne provient "
+                    + "pas de la documentation interne et n'a pas été validée par l'entreprise.";
+            case NO_ANSWER -> NO_ANSWER_DISCLAIMER;
+        };
     }
 
     /**
@@ -264,11 +321,15 @@ public class AiService {
      * unrelated request. A short follow-up ("et sur Mac ?") that finds nothing alone borrows the previous question.
      */
     private List<RelatedArticle> assistantArticles(String question, String previous) {
-        List<RelatedArticle> alone = similarity.articlesWithContent(question, question, ASSISTANT_ARTICLES);
+        double minScore = assistantProperties.candidateMinScore();
+        int limit = assistantProperties.maxArticles();
+        List<RelatedArticle> alone = similarity.articleCandidates(question, question, minScore, limit);
         if (!alone.isEmpty() || previous.isBlank() || !isFollowUp(question)) {
             return alone;
         }
-        return similarity.articlesWithContent(question, question + " " + previous, ASSISTANT_ARTICLES);
+        // The title comparison takes the context too: "Et en couleur ?" alone looks like no article title.
+        String context = question + " " + previous;
+        return similarity.articleCandidates(context, context, minScore, limit);
     }
 
     static boolean isFollowUp(String question) {

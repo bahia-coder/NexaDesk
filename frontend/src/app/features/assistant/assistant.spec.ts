@@ -8,7 +8,7 @@ import { AiStatus, AssistantAnswer } from '../../core/ai/ai.models';
 import { AuthService } from '../../core/auth/auth.service';
 import { AssistantPage } from './assistant.page';
 import { markdownBlocks } from '../../core/format/markdown';
-import { Exchange, historyFor } from './conversation';
+import { Exchange, historyFor, ticketTitleFor } from './conversation';
 
 const VPN = {
   article: {
@@ -32,8 +32,10 @@ function reply(change: Partial<AssistantAnswer>): AssistantAnswer {
   return {
     source: 'HEURISTIC',
     disclaimer: HEURISTIC.disclaimer,
+    responseMode: 'KNOWLEDGE_BASE',
     answer: null,
     articles: [VPN],
+    confidence: null,
     suggestTicket: false,
     ...change,
   };
@@ -70,6 +72,13 @@ describe('Assistant conversation', () => {
       { role: 'USER', content: 'Et sur Mac ?' },
       { role: 'ASSISTANT', content: 'Ouvrez les réglages réseau.' },
     ]);
+  });
+
+  it('turns a question into a one-line ticket title of 150 characters at most', () => {
+    expect(ticketTitleFor('  Mon VPN\n  ne marche plus ')).toBe('Mon VPN ne marche plus');
+    const long = ticketTitleFor('a'.repeat(400));
+    expect(long).toHaveLength(150);
+    expect(long.endsWith('…')).toBe(true);
   });
 });
 
@@ -119,7 +128,9 @@ describe('Assistant page', () => {
     await fixture.whenStable();
 
     const bubble = el.querySelector('.bubble--assistant')!;
+    expect(bubble.textContent).toContain('Réponse basée sur la documentation interne');
     expect(bubble.textContent).toContain('Mode démo — heuristique');
+    expect(bubble.querySelector('.confidence')).toBeNull();
     expect(bubble.textContent).toContain('Voici les articles de la base de connaissances');
     expect(bubble.querySelector('nx-markdown-text')).toBeNull();
     expect(bubble.querySelector('.source')?.textContent).toContain('VPN : erreur 809');
@@ -128,12 +139,14 @@ describe('Assistant page', () => {
     await ask(fixture, el, 'Et sur Mac ?');
     const second = http.expectOne('/api/ai/assistant');
     expect(second.request.body.history).toHaveLength(2);
-    second.flush(reply({ articles: [], suggestTicket: true }));
+    second.flush(reply({ responseMode: 'NO_ANSWER', articles: [], suggestTicket: true }));
     await fixture.whenStable();
     expect(el.querySelectorAll('.bubble--assistant')[1].textContent).toContain(
       'Aucun article de la base de connaissances ne couvre cette question.',
     );
-    expect(el.querySelector('.ticket-hint a')?.getAttribute('href')).toBe('/tickets/new');
+    expect(el.querySelector('.ticket-hint a')?.getAttribute('href')).toBe(
+      '/tickets/new?title=Et%20sur%20Mac%20%3F',
+    );
   });
 
   it('shows a model’s answer with its sources, and lets a failed question be sent again', async () => {
@@ -156,6 +169,7 @@ describe('Assistant page', () => {
         source: 'LLM',
         disclaimer: 'Réponse générée par IA à partir de la base de connaissances.',
         answer: '1. Redémarrez la box.\n2. Relancez le VPN.',
+        confidence: 'HIGH',
       }),
     );
     await fixture.whenStable();
@@ -166,5 +180,33 @@ describe('Assistant page', () => {
       'Relancez le VPN.',
     ]);
     expect(bubble.textContent).toContain('Sources');
+    expect(bubble.querySelector('.confidence')?.textContent).toBe('Confiance élevée');
+  });
+
+  it('flags a general-knowledge suggestion, without sources, and offers a ticket', async () => {
+    const { fixture, el } = await open({ ...HEURISTIC, mode: 'LLM', model: 'claude-opus-5-5' });
+    await ask(fixture, el, 'Excel plante quand j’ouvre un gros fichier');
+    http.expectOne('/api/ai/assistant').flush(
+      reply({
+        source: 'LLM',
+        responseMode: 'AI_FALLBACK',
+        disclaimer: 'Suggestion issue de connaissances générales, non validée par l’entreprise.',
+        answer: 'Je n’ai pas trouvé de solution…\n\n1. Ouvrez Excel en mode sans échec.',
+        articles: [],
+        confidence: 'MEDIUM',
+        suggestTicket: true,
+      }),
+    );
+    await fixture.whenStable();
+    const bubble = el.querySelector('.bubble--assistant')!;
+    expect(bubble.querySelector('.badge--warning')?.textContent).toContain(
+      'Suggestion générée par l’IA – connaissances générales',
+    );
+    expect(bubble.querySelector('.answer--fallback')).not.toBeNull();
+    expect(bubble.querySelector('.sources')).toBeNull();
+    expect(bubble.querySelector('.ticket-hint')?.textContent).toContain('un technicien');
+    expect(bubble.querySelector('.ticket-hint a')?.getAttribute('href')).toContain(
+      'title=Excel%20plante',
+    );
   });
 });

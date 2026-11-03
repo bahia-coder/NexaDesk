@@ -3,37 +3,38 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import {
   BookOpen,
-  Eye,
   LucideAngularModule,
   Plus,
   RefreshCw,
   Search,
   SearchX,
-  ThumbsUp,
+  Sparkles,
+  TicketPlus,
+  TrendingUp,
   TriangleAlert,
   X,
 } from 'lucide-angular';
 import { Subject, catchError, debounceTime, distinctUntilChanged, map, of } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
-import { formatDateTime } from '../../core/format/time';
 import { dataOf, loadState } from '../../core/http/load-state';
+import { categoryIcon } from '../../shared/ui/category-icon';
 import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
 import { PaginatorComponent } from '../../shared/ui/paginator.component';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
-import { Category } from '../tickets/tickets.models';
-import { TicketsService } from '../tickets/tickets.service';
+import { ArticleCardComponent } from './article-card.component';
 import {
   ARTICLE_SORT_LABELS,
-  ARTICLE_STATUS_LABELS,
-  ARTICLE_STATUS_TONES,
   ArticleFilter,
   ArticleSort,
   ArticleStatus,
+  ArticleSummary,
+  CategoryCount,
 } from './knowledge.models';
 import { KnowledgeService } from './knowledge.service';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 12;
+const POPULAR = 4;
 const STATUSES: ArticleStatus[] = ['PUBLISHED', 'DRAFT', 'ARCHIVED'];
 const SORTS: ArticleSort[] = ['RELEVANCE', 'RECENT', 'POPULAR'];
 
@@ -48,21 +49,23 @@ function filterFromParams(p: Params): ArticleFilter & { page: number } {
 }
 
 /**
- * Knowledge base: full-text search for everyone; support staff also see their drafts (technicians) or every
- * article (admins) and can write one. Filters in the URL.
+ * Knowledge base. Without a search: browse by theme and the most read articles. With one: full-text results,
+ * best first. Support staff also see their drafts (technicians) or every article (admins), and write some.
+ * Filters in the URL.
  */
 @Component({
   selector: 'nx-knowledge-page',
   imports: [
     RouterLink,
     LucideAngularModule,
+    ArticleCardComponent,
     EmptyStateComponent,
     PaginatorComponent,
     SkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './knowledge.page.html',
-  styleUrl: './knowledge.scss',
+  styleUrls: ['./knowledge.scss', './knowledge-list.scss'],
 })
 export class KnowledgePage {
   private readonly api = inject(KnowledgeService);
@@ -72,26 +75,31 @@ export class KnowledgePage {
 
   protected readonly icons = {
     BookOpen,
-    Eye,
     Plus,
     RefreshCw,
     Search,
     SearchX,
-    ThumbsUp,
+    Sparkles,
+    TicketPlus,
+    TrendingUp,
     TriangleAlert,
     X,
   };
-  protected readonly statusLabels = ARTICLE_STATUS_LABELS;
-  protected readonly statusTones = ARTICLE_STATUS_TONES;
   protected readonly sortLabels = ARTICLE_SORT_LABELS;
   protected readonly sorts = SORTS;
 
   protected readonly staff = computed(() => this.auth.role() !== 'EMPLOYEE');
-  /** Technicians filter on their own drafts; admins on any state. */
-  protected readonly statusOptions = computed(() =>
+  /** Technicians see the published articles and their own drafts; admins every state. */
+  protected readonly statusTabs = computed(() =>
     this.auth.role() === 'ADMIN'
-      ? STATUSES.map((s) => ({ value: s, label: ARTICLE_STATUS_LABELS[s] + 's' }))
+      ? [
+          { value: undefined, label: 'Tous' },
+          { value: 'PUBLISHED' as ArticleStatus, label: 'Publiés' },
+          { value: 'DRAFT' as ArticleStatus, label: 'Brouillons' },
+          { value: 'ARCHIVED' as ArticleStatus, label: 'Archivés' },
+        ]
       : [
+          { value: undefined, label: 'Tous' },
           { value: 'PUBLISHED' as ArticleStatus, label: 'Publiés' },
           { value: 'DRAFT' as ArticleStatus, label: 'Mes brouillons' },
         ],
@@ -100,9 +108,10 @@ export class KnowledgePage {
   protected readonly filter = toSignal(this.route.queryParams.pipe(map(filterFromParams)), {
     initialValue: filterFromParams({}),
   });
-  protected readonly filtered = computed(() => {
+  /** No search, no theme, no state: the page offers ways in rather than a bare list. */
+  protected readonly browsing = computed(() => {
     const f = this.filter();
-    return !!(f.search || f.categoryId || f.status);
+    return !f.search && !f.categoryId && !f.status;
   });
   /** What the API sorts by: relevance only applies to a search. */
   protected readonly sort = computed<ArticleSort>(() => {
@@ -114,12 +123,14 @@ export class KnowledgePage {
         : 'RECENT';
   });
 
-  protected readonly categories = toSignal(
-    inject(TicketsService)
-      .categories()
-      .pipe(catchError(() => of([] as Category[]))),
-    { initialValue: [] as Category[] },
+  protected readonly themes = toSignal(
+    this.api.categoryCounts().pipe(catchError(() => of(null as CategoryCount[] | null))),
+    { initialValue: undefined },
   );
+  protected readonly activeTheme = computed(() => {
+    const id = this.filter().categoryId;
+    return id ? (this.themes()?.find((t) => t.category.id === id)?.category ?? null) : null;
+  });
 
   private readonly reload = signal(0);
   protected readonly state = loadState(
@@ -131,6 +142,18 @@ export class KnowledgePage {
   );
   protected readonly page = computed(() => dataOf(this.state()));
 
+  private readonly popularState = loadState(
+    computed(() => this.browsing()),
+    (browsing) =>
+      browsing
+        ? this.api.list({ sort: 'POPULAR', status: 'PUBLISHED' }, 0, POPULAR).pipe(
+            map((p) => p.content),
+            catchError(() => of([] as ArticleSummary[])),
+          )
+        : of([] as ArticleSummary[]),
+  );
+  protected readonly popular = computed(() => dataOf(this.popularState()));
+
   private readonly search$ = new Subject<string>();
 
   constructor() {
@@ -141,6 +164,12 @@ export class KnowledgePage {
 
   protected onSearch(value: string): void {
     this.search$.next(value);
+  }
+
+  protected clearSearch(input: HTMLInputElement): void {
+    input.value = '';
+    this.search$.next('');
+    input.focus();
   }
 
   protected update(change: Params): void {
@@ -167,7 +196,7 @@ export class KnowledgePage {
     this.reload.update((n) => n + 1);
   }
 
-  protected exact(at: string): string {
-    return formatDateTime(at);
+  protected icon(name: string | null): ReturnType<typeof categoryIcon> {
+    return categoryIcon(name);
   }
 }

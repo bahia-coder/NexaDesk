@@ -134,6 +134,34 @@
   font: var(--text-xs);
 }
 
+.confidence {
+  font: var(--text-xs);
+  color: var(--color-text-muted);
+
+  &::before {
+    content: '●';
+    margin-right: 4px;
+  }
+
+  &[data-level='HIGH']::before {
+    color: var(--color-success-text);
+  }
+
+  &[data-level='MEDIUM']::before {
+    color: var(--color-warning-text);
+  }
+
+  &[data-level='LOW']::before {
+    color: var(--color-danger-text);
+  }
+}
+
+/* General-knowledge answers stand apart from the internal documentation. */
+.answer--fallback {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--color-warning-text);
+}
+
 .sources {
   display: flex;
   flex-direction: column;

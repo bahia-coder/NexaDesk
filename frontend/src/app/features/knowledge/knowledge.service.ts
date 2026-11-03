@@ -4,7 +4,13 @@ import { Observable } from 'rxjs';
 
 import { HANDLES_ERRORS } from '../../core/http/api-error';
 import { Page } from '../../core/models/page.models';
-import { ArticleFields, ArticleFilter, ArticleSummary, KnowledgeArticle } from './knowledge.models';
+import {
+  ArticleFields,
+  ArticleFilter,
+  ArticleSummary,
+  CategoryCount,
+  KnowledgeArticle,
+} from './knowledge.models';
 
 /** Knowledge base: search, reading, drafts, publication, and links with tickets. */
 @Injectable({ providedIn: 'root' })
@@ -21,6 +27,10 @@ export class KnowledgeService {
       }
     }
     return this.http.get<Page<ArticleSummary>>('/api/knowledge', { params });
+  }
+
+  categoryCounts(): Observable<CategoryCount[]> {
+    return this.http.get<CategoryCount[]>('/api/knowledge/categories');
   }
 
   /** Counts a view when the article is published. */

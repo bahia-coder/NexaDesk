@@ -38,6 +38,18 @@ export interface KnowledgeArticle extends ArticleSummary {
   availableActions: ArticleAction[];
 }
 
+/** GET /api/knowledge/categories: published articles per category, for browsing by theme. */
+export interface CategoryCount {
+  category: CategoryRef;
+  articles: number;
+}
+
+/** About 200 words a minute, never less than a minute. */
+export function readingMinutes(content: string): number {
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
 export interface ArticleFilter {
   search?: string;
   categoryId?: number;

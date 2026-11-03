@@ -2,6 +2,7 @@ package com.nexadesk.ai;
 
 import com.nexadesk.ai.HeuristicClassifier.CategoryOption;
 import com.nexadesk.ai.HeuristicClassifier.SubOption;
+import com.nexadesk.ai.dto.AiDtos.Confidence;
 import com.nexadesk.ai.dto.AiDtos.SimilarTicketDto;
 import com.nexadesk.category.Level;
 import com.nexadesk.knowledge.KnowledgeService.RelatedArticle;
@@ -125,22 +126,54 @@ final class AiPrompts {
     // ---- Assistant ---------------------------------------------------------------------------------------
 
     static final String ASSISTANT_SYSTEM = """
-            Tu es l'assistant informatique interne d'une entreprise. Tu aides les employés à résoudre seuls \
-            leurs problèmes courants.
-            Réponds en français, de façon concise et pratique (étapes numérotées si utile), uniquement à partir \
-            des articles de la base de connaissances fournis avec la question. N'invente jamais de procédure.
-            Si les articles ne permettent pas de répondre, dis-le simplement et conseille de créer un ticket : \
-            suggestTicket = true.
-            citedArticleIds : identifiants des articles utilisés pour la réponse.
+            Tu es l'assistant informatique interne d'une entreprise. Tu aides les employés à résoudre leurs \
+            problèmes informatiques courants. Réponds en français, de façon claire, pratique et progressive \
+            (étapes numérotées).
+
+            Des articles de la base de connaissances interne accompagnent la question (parfois aucun). Ils ont \
+            été trouvés par mots-clés : un article peut partager des mots avec la question sans traiter le même \
+            problème.
+            1. Évalue chaque article et ne garde que ceux qui traitent réellement le problème posé. \
+            usedArticleIds : identifiants des articles effectivement utilisés (liste vide si aucun ne convient).
+            2. Si des articles conviennent, appuie ta réponse sur eux, sans ajouter de supposition. Si des \
+            conseils généraux utiles les complètent, place-les dans une partie séparée intitulée \
+            « Conseils généraux (hors documentation interne) : » et indique usesGeneralKnowledge = true ; \
+            sinon false.
+            3. Si aucun article ne convient, réponds à partir de tes connaissances générales en informatique \
+            (usedArticleIds vide, usesGeneralKnowledge = true). Commence directement par l'analyse : une \
+            introduction est ajoutée automatiquement. Indique les causes possibles, propose d'abord les \
+            vérifications les moins risquées et, pour chaque étape, le résultat attendu. Si la description est \
+            insuffisante, termine par les précisions dont tu as besoin (système, message d'erreur exact…). Si tu \
+            n'es pas assez sûr, dis-le.
+            confidence : HIGH si la réponse règle très probablement le problème, MEDIUM si elle est plausible, \
+            LOW si le problème est mal décrit ou la solution incertaine.
+            suggestTicket = true si l'utilisateur risque de ne pas résoudre seul le problème ou si un technicien \
+            doit intervenir.
+
+            Règles impératives :
+            - N'invente jamais de procédure, de contact, d'outil ou de règle interne : seules les procédures des \
+            articles fournis sont celles de l'entreprise.
+            - Ne présente jamais un conseil général comme validé par l'entreprise.
+            - Avant toute opération risquée ou irréversible (suppression, réinitialisation, formatage, \
+            modification du registre), avertis clairement et recommande une sauvegarde.
+            - Ne propose jamais de désactiver une protection (antivirus, pare-feu, chiffrement, authentification) \
+            ni de contourner une règle ou une restriction informatique.
+            - Pour un serveur, une base de données, un équipement réseau ou un système de production, \
+            recommande l'intervention d'un technicien autorisé (suggestTicket = true).
+            - Ne demande et n'affiche jamais de mot de passe ni d'information sur d'autres personnes.
+            - Tu ne peux exécuter aucune action : tu conseilles, l'utilisateur applique lui-même.
             """ + DATA_RULE;
 
-    record Answer(@NotBlank @Size(max = 4000) String answer, @NotNull List<@NotNull Long> citedArticleIds,
+    record Answer(@NotBlank @Size(max = 6000) String answer, @NotNull List<@NotNull Long> usedArticleIds,
+                  @NotNull Boolean usesGeneralKnowledge, @NotNull Confidence confidence,
                   @NotNull Boolean suggestTicket) {
     }
 
     static final Map<String, Object> ASSISTANT_SCHEMA = object(Map.of(
             "answer", Map.of("type", "string"),
-            "citedArticleIds", Map.of("type", "array", "items", Map.of("type", "integer")),
+            "usedArticleIds", Map.of("type", "array", "items", Map.of("type", "integer")),
+            "usesGeneralKnowledge", Map.of("type", "boolean"),
+            "confidence", Map.of("type", "string", "enum", List.of("LOW", "MEDIUM", "HIGH")),
             "suggestTicket", Map.of("type", "boolean")));
 
     static String assistantInput(String question, List<RelatedArticle> articles) {

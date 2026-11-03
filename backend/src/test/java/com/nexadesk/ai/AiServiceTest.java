@@ -1,8 +1,8 @@
 package com.nexadesk.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +14,8 @@ import com.nexadesk.ai.dto.AiDtos.AssistantRequest;
 import com.nexadesk.ai.dto.AiDtos.ChatRole;
 import com.nexadesk.ai.dto.AiDtos.ChatTurn;
 import com.nexadesk.ai.dto.AiDtos.ClassificationDto;
+import com.nexadesk.ai.dto.AiDtos.Confidence;
+import com.nexadesk.ai.dto.AiDtos.ResponseMode;
 import com.nexadesk.ai.dto.AiDtos.TextRequest;
 import com.nexadesk.ai.llm.LlmClient;
 import com.nexadesk.ai.llm.LlmException;
@@ -101,8 +103,11 @@ class AiServiceTest {
         LlmJson json = new LlmJson(new ObjectMapper(), Validation.buildDefaultValidatorFactory().getValidator());
         Clock clock = Clock.fixed(Instant.parse("2026-11-02T10:00:00Z"), ZoneOffset.UTC);
         return new AiService(runtime, new AiRateLimiter(properties, clock), json, catalog, similarity, tickets,
-                conversation, interventions, currentUser, properties, ZoneId.of("Europe/Paris"));
+                conversation, interventions, currentUser, properties, ASSISTANT, ZoneId.of("Europe/Paris"));
     }
+
+    /** Same thresholds as application.yml. */
+    private static final AssistantProperties ASSISTANT = new AssistantProperties(0.08, 0.35, 4);
 
     private static final TextRequest PRINTER_TICKET = new TextRequest("Imprimante bloquée", "Bourrage papier");
 
@@ -173,47 +178,116 @@ class AiServiceTest {
                 0, 0, null, null), "Contenu de " + title, score);
     }
 
-    @Test
-    void theAssistantAnswersFromTheRetrievedArticlesAndCitesThemFirst() {
-        when(similarity.articlesWithContent(anyString(), anyString(), anyInt()))
-                .thenReturn(List.of(article(1, "Wi-Fi", 0.4), article(2, "Poste lent", 0.3)));
-        answers.add("{\"answer\":\"Redémarrez le poste.\",\"citedArticleIds\":[2],\"suggestTicket\":false}");
+    private void candidates(RelatedArticle... articles) {
+        when(similarity.articleCandidates(anyString(), anyString(), eq(0.08), eq(4))).thenReturn(List.of(articles));
+    }
 
-        AssistantAnswerDto answer = service(AiProperties.Mode.LLM, 10).assistant(new AssistantRequest(
-                "Mon poste est lent", List.of(new ChatTurn(ChatRole.ASSISTANT, "Bonjour"),
-                new ChatTurn(ChatRole.USER, "J'ai un souci"), new ChatTurn(ChatRole.ASSISTANT, "Lequel ?"))));
-
-        assertThat(answer.source()).isEqualTo(AiSource.LLM);
-        assertThat(answer.answer()).isEqualTo("Redémarrez le poste.");
-        assertThat(answer.articles()).extracting(a -> a.article().id()).containsExactly(2L, 1L);
-        List<LlmClient.Message> sent = requests.getFirst().messages();
-        assertThat(sent.getFirst().role()).as("the conversation starts with the user").isEqualTo(LlmClient.Role.USER);
-        assertThat(sent.getLast().content()).contains("[article id 1]", "[article id 2]", "Mon poste est lent");
+    private static String modelAnswer(String answer, String usedIds, boolean general, String confidence,
+                                      boolean ticket) {
+        return "{\"answer\":\"" + answer + "\",\"usedArticleIds\":[" + usedIds + "],\"usesGeneralKnowledge\":"
+                + general + ",\"confidence\":\"" + confidence + "\",\"suggestTicket\":" + ticket + "}";
     }
 
     @Test
-    void anAnswerCitingAnArticleItWasNotGivenIsRejected() {
-        when(similarity.articlesWithContent(anyString(), anyString(), anyInt()))
-                .thenReturn(List.of(article(1, "Wi-Fi", 0.4)));
-        answers.add("{\"answer\":\"Voir l'article 42.\",\"citedArticleIds\":[42],\"suggestTicket\":false}");
+    void knowledgeBase_theModelAnswersFromTheArticlesItJudgedRelevantAndOnlyThoseAreSources() {
+        candidates(article(1, "Wi-Fi instable", 0.42), article(2, "Portable ne s'allume plus", 0.34));
+        answers.add(modelAnswer("1. Oubliez le réseau puis reconnectez-vous.", "1", false, "HIGH", false));
+
+        AssistantAnswerDto answer = service(AiProperties.Mode.LLM, 10).assistant(new AssistantRequest(
+                "Mon ordinateur ne se connecte plus au Wi-Fi", List.of(new ChatTurn(ChatRole.ASSISTANT, "Bonjour"),
+                new ChatTurn(ChatRole.USER, "J'ai un souci"), new ChatTurn(ChatRole.ASSISTANT, "Lequel ?"))));
+
+        assertThat(answer.responseMode()).isEqualTo(ResponseMode.KNOWLEDGE_BASE);
+        assertThat(answer.source()).isEqualTo(AiSource.LLM);
+        assertThat(answer.answer()).isEqualTo("1. Oubliez le réseau puis reconnectez-vous.");
+        assertThat(answer.articles()).as("the article sharing words only is not a source")
+                .extracting(a -> a.article().id()).containsExactly(1L);
+        assertThat(answer.confidence()).isEqualTo(Confidence.HIGH);
+        assertThat(answer.suggestTicket()).isFalse();
+        assertThat(answer.disclaimer()).contains("documentation interne", "Fake");
+        List<LlmClient.Message> sent = requests.getFirst().messages();
+        assertThat(sent.getFirst().role()).as("the conversation starts with the user").isEqualTo(LlmClient.Role.USER);
+        assertThat(sent.getLast().content()).contains("[article id 1]", "[article id 2]", "ne se connecte plus");
+        assertThat(requests.getFirst().system()).contains("N'invente jamais de procédure",
+                "Ne propose jamais de désactiver une protection");
+    }
+
+    @Test
+    void hybrid_articlesCompletedByGeneralAdviceAreFlaggedAsSuch() {
+        candidates(article(3, "Erreur VPN 809", 0.64));
+        answers.add(modelAnswer("Selon l'article… Conseils généraux (hors documentation interne) : …", "3", true,
+                "MEDIUM", false));
+
+        AssistantAnswerDto answer = service(AiProperties.Mode.LLM, 10).assistant(
+                new AssistantRequest("Le VPN affiche l'erreur 809 depuis un hôtel", null));
+
+        assertThat(answer.responseMode()).isEqualTo(ResponseMode.HYBRID);
+        assertThat(answer.articles()).extracting(a -> a.article().id()).containsExactly(3L);
+        assertThat(answer.disclaimer()).contains("conseils généraux", "pas été validés");
+    }
+
+    @Test
+    void aiFallback_whenNoArticleFitsTheModelAnswersFromGeneralKnowledgeWithoutSources() {
+        // A keyword match that does not answer the question: the model sets it aside.
+        candidates(article(4, "Ordinateur lent", 0.16));
+        answers.add(modelAnswer("Causes possibles : … 1. Fermez Excel puis…", "", true, "HIGH", false));
+
+        AssistantAnswerDto answer = service(AiProperties.Mode.LLM, 10).assistant(
+                new AssistantRequest("Excel plante quand j'ouvre un gros fichier", null));
+
+        assertThat(answer.responseMode()).isEqualTo(ResponseMode.AI_FALLBACK);
+        assertThat(answer.articles()).as("no made-up source").isEmpty();
+        assertThat(answer.answer()).startsWith(AiService.FALLBACK_INTRO).contains("Fermez Excel");
+        assertThat(answer.confidence()).as("general knowledge is never rated certain")
+                .isEqualTo(Confidence.MEDIUM);
+        assertThat(answer.suggestTicket()).isTrue();
+        assertThat(answer.disclaimer()).contains("connaissances générales", "pas été validée par l'entreprise");
+    }
+
+    @Test
+    void aiFallback_theModelIsAskedEvenWhenTheSearchFindsNothing() {
+        candidates();
+        answers.add(modelAnswer("Vérifiez le mode avion…", "", true, "LOW", true));
+
+        AssistantAnswerDto answer = service(AiProperties.Mode.LLM, 10).assistant(
+                new AssistantRequest("Mon ordinateur ne voit plus aucun réseau", null));
+
+        assertThat(answer.responseMode()).isEqualTo(ResponseMode.AI_FALLBACK);
+        assertThat(answer.confidence()).isEqualTo(Confidence.LOW);
+        assertThat(requests.getFirst().messages().getLast().content()).contains("(aucun)");
+    }
+
+    @Test
+    void anAnswerCitingAnArticleItWasNotGivenIsRejectedAndTheReliableArticlesAreListed() {
+        candidates(article(1, "Wi-Fi instable", 0.42), article(2, "Ordinateur lent", 0.16));
+        answers.add(modelAnswer("Voir l'article 42.", "42", false, "HIGH", false));
 
         AssistantAnswerDto answer = service(AiProperties.Mode.LLM, 10).assistant(
                 new AssistantRequest("Wi-Fi coupé", null));
 
         assertThat(answer.source()).isEqualTo(AiSource.HEURISTIC);
+        assertThat(answer.disclaimer()).isEqualTo(AiService.FALLBACK_DISCLAIMER);
+        assertThat(answer.responseMode()).isEqualTo(ResponseMode.KNOWLEDGE_BASE);
         assertThat(answer.answer()).isNull();
-        assertThat(answer.articles()).hasSize(1);
+        assertThat(answer.articles()).extracting(a -> a.article().id()).containsExactly(1L);
     }
 
     @Test
-    void withoutAnyRelevantArticleTheModelIsNotCalledAndATicketIsSuggested() {
-        when(similarity.articlesWithContent(anyString(), anyString(), anyInt())).thenReturn(List.of());
+    void withoutAModelOnlyReliableArticlesAreListedAndThereIsNoFallback() {
+        AiService service = service(AiProperties.Mode.HEURISTIC, 10);
+        candidates(article(3, "Erreur VPN 809", 0.64), article(4, "Ordinateur lent", 0.16));
+        AssistantAnswerDto found = service.assistant(new AssistantRequest("Erreur VPN 809", null));
+        assertThat(found.responseMode()).isEqualTo(ResponseMode.KNOWLEDGE_BASE);
+        assertThat(found.articles()).extracting(a -> a.article().id()).containsExactly(3L);
+        assertThat(found.confidence()).isNull();
 
-        AssistantAnswerDto answer = service(AiProperties.Mode.LLM, 10).assistant(
-                new AssistantRequest("Comment commander un badge de parking ?", null));
-
-        assertThat(answer.suggestTicket()).isTrue();
-        assertThat(answer.disclaimer()).isEqualTo(AiService.NO_SOURCE_DISCLAIMER);
+        candidates(article(4, "Ordinateur lent", 0.16));
+        AssistantAnswerDto none = service.assistant(new AssistantRequest("Excel plante", null));
+        assertThat(none.responseMode()).isEqualTo(ResponseMode.NO_ANSWER);
+        assertThat(none.answer()).isNull();
+        assertThat(none.articles()).isEmpty();
+        assertThat(none.suggestTicket()).isTrue();
+        assertThat(none.disclaimer()).isEqualTo(AiService.HEURISTIC_DISCLAIMER);
         assertThat(requests).isEmpty();
     }
 

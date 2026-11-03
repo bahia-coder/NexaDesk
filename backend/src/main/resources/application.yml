@@ -84,6 +84,12 @@ nexadesk:
     model: ${AI_MODEL:}
     timeout: ${AI_TIMEOUT:20s}
     requests-per-minute: ${AI_REQUESTS_PER_MINUTE:10}
+    assistant:
+      # Search score below which an article is not even shown to the model (shares a word or two at most).
+      candidate-min-score: ${AI_ASSISTANT_CANDIDATE_MIN_SCORE:0.08}
+      # From this score an article is trusted without a model (heuristic mode lists only those).
+      reliable-score: ${AI_ASSISTANT_RELIABLE_SCORE:0.35}
+      max-articles: 4
 
 logging:
   pattern:

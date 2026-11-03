@@ -1,6 +1,9 @@
 # Local development profile. The defaults below match docker-compose.dev.yml and are NOT secrets:
 # they only grant access to a throwaway local database container.
 spring:
+  # Optional local AI settings (AI_MODE, AI_API_KEY…), kept out of Git: backend/ai.env.local.
+  config:
+    import: optional:file:./ai.env.local[.properties]
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/nexadesk}
     username: ${DB_USERNAME:nexadesk}

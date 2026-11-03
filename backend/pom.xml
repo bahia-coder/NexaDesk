@@ -204,6 +204,11 @@
                 <configuration>
                     <!-- Bounded heap + serial GC: the test JVM stays small on modest machines and CI runners. -->
                     <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off -Xmx768m -XX:+UseSerialGC</argLine>
+                    <!-- Tests never call a real model, whatever a developer's local AI settings (ai.env.local). -->
+                    <systemPropertyVariables>
+                        <nexadesk.ai.mode>heuristic</nexadesk.ai.mode>
+                        <nexadesk.ai.api-key></nexadesk.ai.api-key>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <plugin>

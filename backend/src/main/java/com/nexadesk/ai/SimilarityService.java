@@ -82,6 +82,15 @@ public class SimilarityService {
         return relevant(knowledge.related(text, title, limit), RelatedArticle::score);
     }
 
+    /**
+     * Assistant candidates: every published article from {@code minScore}, best first, with its text. No cut
+     * relative to the best one here: the model judges each candidate itself.
+     */
+    @Transactional(readOnly = true)
+    public List<RelatedArticle> articleCandidates(String title, String text, double minScore, int limit) {
+        return knowledge.related(text, title, limit).stream().filter(a -> a.score() >= minScore).toList();
+    }
+
     /** Articles with their relevance (the best one is 100). */
     public static List<ArticleMatchDto> matches(List<RelatedArticle> articles) {
         double best = articles.isEmpty() ? 0 : articles.getFirst().score();

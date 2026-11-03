@@ -3,6 +3,7 @@ package com.nexadesk.ai.llm;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
     private final RestClient http;
     private final ObjectMapper mapper;
     private final String model;
+    /** Shown to users: the server's host (api.groq.com, localhost…), which says who answers. */
+    private final String provider;
 
     public OpenAiCompatibleLlmClient(String baseUrl, String apiKey, String model, Duration timeout,
                                      ObjectMapper mapper) {
@@ -43,11 +46,13 @@ public class OpenAiCompatibleLlmClient implements LlmClient {
         this.http = builder.build();
         this.mapper = mapper;
         this.model = model;
+        String host = URI.create(baseUrl).getHost();
+        this.provider = host == null || host.isBlank() ? "OpenAI-compatible" : host;
     }
 
     @Override
     public String provider() {
-        return "OpenAI-compatible";
+        return provider;
     }
 
     @Override

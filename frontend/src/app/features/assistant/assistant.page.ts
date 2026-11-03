@@ -7,6 +7,8 @@ import {
   afterNextRender,
   computed,
   inject,
+  input,
+  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
@@ -31,7 +33,13 @@ import { AuthService } from '../../core/auth/auth.service';
 import { AiSourceBadgeComponent } from '../../shared/ui/ai-source-badge.component';
 import { SpinnerComponent } from '../../shared/ui/spinner.component';
 import { ArticleDialogComponent } from './article-dialog.component';
-import { Exchange, historyFor } from './conversation';
+import {
+  CONFIDENCE_LABELS,
+  Exchange,
+  RESPONSE_MODES,
+  historyFor,
+  ticketTitleFor,
+} from './conversation';
 import { MarkdownTextComponent } from '../../shared/ui/markdown-text.component';
 
 const MAX_QUESTION = 1000;
@@ -76,6 +84,8 @@ export class AssistantPage {
     Sparkles,
     TicketPlus,
   };
+  protected readonly modes = RESPONSE_MODES;
+  protected readonly confidenceLabels = CONFIDENCE_LABELS;
   protected readonly starters = STARTERS;
   protected readonly maxQuestion = MAX_QUESTION;
 
@@ -91,9 +101,9 @@ export class AssistantPage {
     }
     switch (status?.mode) {
       case 'LLM':
-        return `Les réponses sont rédigées par un modèle d’IA (${status.model ?? status.provider}) à partir des articles publiés de la base de connaissances. Vérifiez les étapes avant de les appliquer.`;
+        return `Un modèle d’IA (${status.model ?? status.provider}) répond d’abord à partir des articles publiés de la base de connaissances. Si aucun ne couvre votre question, il propose une suggestion tirée de ses connaissances générales, signalée comme telle. Vérifiez les étapes avant de les appliquer.`;
       case 'HEURISTIC':
-        return 'Aucun modèle d’IA n’est connecté : l’assistant ne rédige pas de réponse, il recherche les articles de la base de connaissances qui correspondent à votre question.';
+        return 'Aucun modèle d’IA n’est connecté : l’assistant ne rédige pas de réponse et ne propose pas de suggestion générale ; il recherche les articles de la base de connaissances qui correspondent à votre question.';
       case 'DISABLED':
         return 'Les fonctions d’IA sont désactivées sur cette installation : l’assistant recherche seulement les articles correspondants.';
       default:
@@ -102,7 +112,9 @@ export class AssistantPage {
   });
 
   protected readonly exchanges = signal<Exchange[]>([]);
-  protected readonly draft = signal('');
+  /** ?q= from the knowledge base ("Demander à l’assistant"): ready to send, not sent. */
+  readonly q = input<string>();
+  protected readonly draft = linkedSignal(() => (this.q() ?? '').slice(0, MAX_QUESTION));
   protected readonly pending = computed(() => this.exchanges().some((e) => !e.reply && !e.failed));
   protected readonly canSend = computed(() => {
     const text = this.draft().trim();
@@ -156,6 +168,10 @@ export class AssistantPage {
   protected restart(): void {
     this.exchanges.set([]);
     this.draft.set('');
+  }
+
+  protected ticketTitle(question: string): string {
+    return ticketTitleFor(question);
   }
 
   protected read(article: ArticleSummary): void {

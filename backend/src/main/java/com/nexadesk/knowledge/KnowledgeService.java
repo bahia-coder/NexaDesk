@@ -5,6 +5,7 @@ import com.nexadesk.audit.AuditService;
 import com.nexadesk.category.CategoryMapper;
 import com.nexadesk.category.TicketCategory;
 import com.nexadesk.category.TicketCategoryRepository;
+import com.nexadesk.category.dto.CategoryDtos.CategoryRefDto;
 import com.nexadesk.common.web.PageResponse;
 import com.nexadesk.exception.BusinessException;
 import com.nexadesk.exception.ErrorCode;
@@ -15,6 +16,7 @@ import com.nexadesk.knowledge.dto.KnowledgeDtos.ArticleFilter;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.ArticleRequest;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.ArticleSort;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.ArticleSummaryDto;
+import com.nexadesk.knowledge.dto.KnowledgeDtos.CategoryCountDto;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.HelpfulDto;
 import com.nexadesk.knowledge.dto.KnowledgeDtos.SourceTicketDto;
 import com.nexadesk.ticket.Ticket;
@@ -81,6 +83,20 @@ public class KnowledgeService {
         int totalPages = (int) ((page.total() + pageable.getPageSize() - 1) / pageable.getPageSize());
         return new PageResponse<>(content, pageable.getPageNumber(), pageable.getPageSize(), page.total(),
                 totalPages);
+    }
+
+    /** Active categories holding published articles, with how many: the same for every role. */
+    @Transactional(readOnly = true)
+    public List<CategoryCountDto> categoryCounts() {
+        return jdbc.sql("""
+                        select c.id, c.name, c.icon, count(*) as articles
+                        from knowledge_articles a join ticket_categories c on c.id = a.category_id
+                        where a.status = 'PUBLISHED' and c.active
+                        group by c.id, c.name, c.icon
+                        order by articles desc, c.name""")
+                .query((rs, i) -> new CategoryCountDto(new CategoryRefDto(rs.getLong("id"), rs.getString("name"),
+                        rs.getString("icon")), rs.getLong("articles")))
+                .list();
     }
 
     /** Reading a published article counts as a view (drafts and archives are not counted). */

@@ -53,3 +53,31 @@ export function markdownBlocks(text: string): Block[] {
   flush();
   return blocks;
 }
+
+export interface OutlineEntry {
+  /** Anchor id, unique in the text ("verifications", "verifications-2"…). */
+  id: string;
+  text: string;
+}
+
+function slug(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/** The section titles of a text, in order, with unique anchor ids: an article's table of contents. */
+export function outline(text: string): OutlineEntry[] {
+  const seen = new Map<string, number>();
+  return markdownBlocks(text)
+    .filter((block) => block.kind === 'heading')
+    .map((block) => {
+      const base = slug(block.text) || 'section';
+      const count = (seen.get(base) ?? 0) + 1;
+      seen.set(base, count);
+      return { id: count === 1 ? base : `${base}-${count}`, text: block.text };
+    });
+}
