@@ -59,6 +59,25 @@ cd backend && ./mvnw test        # JUnit 5 + Testcontainers (Docker requis)
 cd frontend && npm test          # Vitest
 ```
 
+### Tests de bout en bout (Playwright)
+
+Ils pilotent un vrai navigateur sur l'application complète, avec les données de démonstration : connexion et
+session, menus et pages interdites de chaque rôle, et le parcours d'un ticket entre une employée et un technicien
+(création, prise en charge, résolution suivie en direct par WebSocket, confirmation).
+
+```bash
+# .env : SPRING_PROFILES_ACTIVE=prod,demo
+docker compose up -d --build
+cd frontend && npm run e2e
+```
+
+- Par défaut, ils visent la stack Docker (`http://localhost:8088`) ; pour les serveurs de développement :
+  `E2E_BASE_URL=http://localhost:4200 npm run e2e`.
+- Ils utilisent Microsoft Edge installé sur le poste. Sans Edge (Linux, CI) : `npx playwright install chromium`, puis
+  `E2E_CHANNEL= npm run e2e`.
+- Aucun identifiant n'est écrit dans les tests : ils lisent les comptes de démonstration sur
+  `/api/auth/demo-accounts`. Chaque exécution crée ses propres tickets.
+
 ## Profils Spring
 
 | Profil | Usage |
