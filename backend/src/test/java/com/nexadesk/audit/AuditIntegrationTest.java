@@ -129,14 +129,22 @@ class AuditIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("name", "Audit " + run))))
                 .andReturn().getResponse().getContentAsString());
-        String reference = objectMapper.readTree(call(employee, post("/api/tickets")
+        JsonNode ticket = objectMapper.readTree(call(employee, post("/api/tickets")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("type", "INCIDENT", "title", "Clavier défaillant",
                         "description", "Plusieurs touches ne répondent plus.", "categoryId",
                         categories.get("id").asLong(), "impact", "LOW", "urgency", "LOW"))))
-                .andReturn().getResponse().getContentAsString()).get("reference").asText();
+                .andReturn().getResponse().getContentAsString());
+        String reference = ticket.get("reference").asText();
 
         assertThat(audit("TICKET_CREATED", reference).get("totalElements").asInt()).isEqualTo(1);
+        call(admin, post("/api/tickets/{id}/status", ticket.get("id").asLong())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("targetStatus", "REJECTED",
+                        "reason", "Doublon d'un autre ticket."))));
+        // Summaries are read by people: statuses appear with their French labels.
+        assertThat(audit("TICKET_STATUS_CHANGED", reference).get("content").get(0).get("summary").asText())
+                .isEqualTo("Ticket " + reference + " : Nouveau → Rejeté");
         assertThat(audit("CATEGORY_CREATED", categories.get("id").asText()).get("totalElements").asInt()).isEqualTo(1);
     }
 

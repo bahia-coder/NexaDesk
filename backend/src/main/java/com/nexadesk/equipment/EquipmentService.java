@@ -199,7 +199,7 @@ public class EquipmentService {
         equipment.setStatus(target);
         repository.flush();
         audit.record(AuditAction.EQUIPMENT_STATUS_CHANGED, AUDITED, equipment.getInventoryCode(),
-                equipment.getInventoryCode() + " : " + current + " → " + target,
+                equipment.getInventoryCode() + " : " + current.label() + " → " + target.label(),
                 AuditService.values("status", current), AuditService.values("status", target));
         return toDto(equipment);
     }

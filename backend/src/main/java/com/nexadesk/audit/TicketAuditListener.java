@@ -3,6 +3,7 @@ package com.nexadesk.audit;
 import com.nexadesk.ticket.Ticket;
 import com.nexadesk.ticket.TicketEvent;
 import com.nexadesk.ticket.TicketRepository;
+import com.nexadesk.ticket.TicketStatus;
 import com.nexadesk.user.User;
 import com.nexadesk.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,10 +49,14 @@ public class TicketAuditListener {
             case CREATED -> "Création du ticket " + ref + " : " + ticket.getTitle();
             case ASSIGNED -> "Ticket " + ref + " affecté à "
                     + (ticket.getAssignee() == null ? "personne" : ticket.getAssignee().getFullName());
-            case STATUS_CHANGED -> "Ticket " + ref + " : " + event.from() + " → " + event.to()
+            case STATUS_CHANGED -> "Ticket " + ref + " : " + label(event.from()) + " → " + label(event.to())
                     + (event.actorId() == null ? " (automatique)" : "");
             case PUBLIC_COMMENT -> "Commentaire public sur " + ref;
             case SLA_WARNING, SLA_BREACHED -> "";
         };
+    }
+
+    private static String label(TicketStatus status) {
+        return status == null ? "—" : status.label();
     }
 }
