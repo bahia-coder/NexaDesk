@@ -145,6 +145,12 @@ export const routes: Routes = [
         title: 'NexaDesk · Notifications',
       },
       {
+        path: 'assistant',
+        loadComponent: () =>
+          import('./features/assistant/assistant.page').then((m) => m.AssistantPage),
+        title: 'NexaDesk · Assistant IA',
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./features/users/profile.page').then((m) => m.ProfilePage),
         title: 'NexaDesk · Mon profil',

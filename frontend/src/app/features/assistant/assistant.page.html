@@ -1,0 +1,131 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page-title">Assistant IA</h1>
+      <p class="muted">Posez votre question : la réponse s’appuie sur la base de connaissances.</p>
+    </div>
+    @if (exchanges().length) {
+      <button type="button" class="btn btn--ghost" [disabled]="pending()" (click)="restart()">
+        <lucide-icon [img]="icons.RotateCcw" [size]="16" aria-hidden="true" /> Nouvelle conversation
+      </button>
+    }
+  </header>
+
+  @if (notice(); as text) {
+    <p class="notice" [class.notice--model]="status()?.mode === 'LLM'">
+      <lucide-icon
+        [img]="status()?.mode === 'LLM' ? icons.Sparkles : icons.Info"
+        [size]="16"
+        aria-hidden="true"
+      />
+      <span>{{ text }}</span>
+    </p>
+  }
+
+  <section class="thread card" #thread aria-live="polite" aria-label="Conversation">
+    @if (exchanges().length === 0) {
+      <div class="welcome">
+        <span class="welcome__icon">
+          <lucide-icon [img]="icons.Sparkles" [size]="24" aria-hidden="true" />
+        </span>
+        <p class="welcome__title">
+          Bonjour {{ auth.user()?.firstName }}, comment puis-je vous aider ?
+        </p>
+        <div class="starters">
+          @for (s of starters; track s) {
+            <button type="button" class="starter" (click)="ask(s)">{{ s }}</button>
+          }
+        </div>
+      </div>
+    }
+
+    @for (e of exchanges(); track e.id) {
+      <div class="bubble bubble--user">
+        <span class="sr-only">Vous :</span>
+        {{ e.question }}
+      </div>
+
+      <div class="bubble bubble--assistant">
+        <span class="sr-only">Assistant :</span>
+        @if (e.reply; as r) {
+          <div class="reply__meta">
+            <nx-ai-source-badge [source]="r.source" [disclaimer]="r.disclaimer" />
+            <span class="muted small">{{ r.disclaimer }}</span>
+          </div>
+
+          @if (r.answer) {
+            <nx-markdown-text [text]="r.answer" />
+          } @else if (r.articles.length) {
+            <p>
+              Voici les articles de la base de connaissances qui correspondent à votre question :
+            </p>
+          }
+
+          @if (r.articles.length) {
+            <div class="sources">
+              @if (r.answer) {
+                <p class="muted small">Sources</p>
+              }
+              @for (m of r.articles; track m.article.id) {
+                <button type="button" class="source" (click)="read(m.article)">
+                  <lucide-icon [img]="icons.BookOpen" [size]="16" aria-hidden="true" />
+                  <span class="source__text">
+                    <span class="source__title">{{ m.article.title }}</span>
+                    <span class="muted small">{{ m.article.summary }}</span>
+                  </span>
+                  <span class="muted small source__score" title="Pertinence">{{ m.score }}</span>
+                </button>
+              }
+            </div>
+          }
+
+          @if (r.suggestTicket) {
+            <div class="ticket-hint">
+              <p>
+                @if (r.articles.length === 0) {
+                  Aucun article de la base de connaissances ne couvre cette question.
+                } @else {
+                  Si ces articles ne règlent pas votre problème, le support peut prendre le relais.
+                }
+              </p>
+              <a class="btn btn--primary btn--sm" routerLink="/tickets/new">
+                <lucide-icon [img]="icons.TicketPlus" [size]="16" aria-hidden="true" /> Créer un
+                ticket
+              </a>
+            </div>
+          }
+        } @else if (e.failed) {
+          <p class="field__error">L’assistant n’a pas pu répondre.</p>
+          <button type="button" class="btn btn--secondary btn--sm" (click)="retry(e)">
+            <lucide-icon [img]="icons.RefreshCw" [size]="14" aria-hidden="true" /> Réessayer
+          </button>
+        } @else {
+          <span class="thinking"
+            ><nx-spinner [size]="16" /> Recherche dans la base de connaissances…</span
+          >
+        }
+      </div>
+    }
+  </section>
+
+  <form class="composer card" (submit)="$event.preventDefault(); ask(draft())">
+    <label class="sr-only" for="nx-question">Votre question</label>
+    <textarea
+      id="nx-question"
+      class="input composer__input"
+      rows="2"
+      placeholder="Décrivez votre problème… (Entrée pour envoyer, Maj+Entrée pour aller à la ligne)"
+      [maxLength]="maxQuestion"
+      name="question"
+      [ngModel]="draft()"
+      (ngModelChange)="draft.set($event)"
+      (keydown)="onKeydown($event)"
+    ></textarea>
+    <div class="composer__foot">
+      <span class="muted small">{{ draft().length }} / {{ maxQuestion }}</span>
+      <button type="submit" class="btn btn--primary" [disabled]="!canSend()">
+        <lucide-icon [img]="icons.SendHorizontal" [size]="16" aria-hidden="true" /> Envoyer
+      </button>
+    </div>
+  </form>
+</div>
