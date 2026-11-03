@@ -259,6 +259,8 @@
           </section>
         }
 
+        <nx-ticket-knowledge [ticket]="t" />
+
         @if (t.feedback || t.availableActions.includes('GIVE_FEEDBACK')) {
           <section class="card facts">
             <h2 class="card__title">Évaluation</h2>

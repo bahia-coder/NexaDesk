@@ -32,7 +32,7 @@ import { AiSourceBadgeComponent } from '../../shared/ui/ai-source-badge.componen
 import { SpinnerComponent } from '../../shared/ui/spinner.component';
 import { ArticleDialogComponent } from './article-dialog.component';
 import { Exchange, historyFor } from './conversation';
-import { MarkdownTextComponent } from './markdown-text.component';
+import { MarkdownTextComponent } from '../../shared/ui/markdown-text.component';
 
 const MAX_QUESTION = 1000;
 

@@ -197,10 +197,18 @@ class KnowledgeAndAiIntegrationTest {
         call(employee, get("/api/tickets/{id}/knowledge-links", id)).andExpect(jsonPath("$.length()").value(0));
         call(otherEmployee, get("/api/tickets/{id}/knowledge-links", id)).andExpect(status().isNotFound());
 
-        // Only published articles can be linked; replacing the list removes the old links.
+        // A new link needs a published article; the draft already linked (written from the ticket) is kept.
         long articleId = draft.get("id").asLong();
-        call(technician, put("/api/tickets/{id}/knowledge-links", id), Map.of("articleIds", List.of(articleId)))
-                .andExpect(status().isBadRequest());
+        long otherDraft = article(admin, "Brouillon voisin " + word).get("id").asLong();
+        call(technician, put("/api/tickets/{id}/knowledge-links", id),
+                Map.of("articleIds", List.of(articleId, otherDraft))).andExpect(status().isBadRequest());
+        long published = article(admin, "Procédure publiée " + word).get("id").asLong();
+        call(admin, post("/api/knowledge/{id}/publish", published)).andExpect(status().isOk());
+        call(technician, put("/api/tickets/{id}/knowledge-links", id),
+                Map.of("articleIds", List.of(articleId, published))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        // Replacing the list removes the old links.
         call(admin, post("/api/knowledge/{id}/publish", articleId)).andExpect(status().isOk());
         long other = article(admin, "Autre procédure " + word).get("id").asLong();
         call(admin, post("/api/knowledge/{id}/publish", other)).andExpect(status().isOk());

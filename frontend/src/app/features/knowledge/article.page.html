@@ -1,0 +1,140 @@
+<div class="page">
+  <a class="back" routerLink="/knowledge">
+    <lucide-icon [img]="icons.ArrowLeft" [size]="16" aria-hidden="true" /> Base de connaissances
+  </a>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state title="Article introuvable" [icon]="icons.TriangleAlert">
+        <button type="button" class="btn btn--secondary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else if (article(); as a) {
+    <div class="layout">
+      <article class="card panel reader" aria-labelledby="article-title">
+        <div class="title-row">
+          <h1 id="article-title" class="page-title">{{ a.title }}</h1>
+          @if (a.status !== 'PUBLISHED') {
+            <span [class]="'badge badge--' + statusTones[a.status]">{{
+              statusLabels[a.status]
+            }}</span>
+          }
+        </div>
+        <p class="lead">{{ a.summary }}</p>
+        <nx-markdown-text [text]="a.content" />
+      </article>
+
+      <aside class="stack">
+        @if (can('EDIT') || can('PUBLISH') || can('ARCHIVE')) {
+          <section class="card panel">
+            <h2 class="card__title">Actions</h2>
+            <div class="actions">
+              @if (can('EDIT')) {
+                <a class="btn btn--secondary" [routerLink]="['/knowledge', a.id, 'edit']">
+                  <lucide-icon [img]="icons.Pencil" [size]="16" aria-hidden="true" /> Modifier
+                </a>
+              }
+              @if (can('PUBLISH')) {
+                <button
+                  type="button"
+                  class="btn btn--primary"
+                  [disabled]="running() !== null"
+                  (click)="publish(a)"
+                >
+                  @if (running() === 'PUBLISH') {
+                    <nx-spinner />
+                  } @else {
+                    <lucide-icon [img]="icons.Send" [size]="16" aria-hidden="true" />
+                  }
+                  {{ a.status === 'ARCHIVED' ? 'Publier de nouveau' : 'Publier' }}
+                </button>
+              }
+              @if (can('ARCHIVE')) {
+                <button
+                  type="button"
+                  class="btn btn--danger"
+                  [disabled]="running() !== null"
+                  (click)="archive(a)"
+                >
+                  @if (running() === 'ARCHIVE') {
+                    <nx-spinner />
+                  } @else {
+                    <lucide-icon [img]="icons.Archive" [size]="16" aria-hidden="true" />
+                  }
+                  Archiver
+                </button>
+              }
+            </div>
+            @if (a.status === 'DRAFT' && !can('PUBLISH')) {
+              <p class="field__hint">Un administrateur relit et publie les brouillons.</p>
+            }
+          </section>
+        }
+
+        @if (can('MARK_HELPFUL')) {
+          <section class="card panel">
+            <h2 class="card__title">Cet article vous a-t-il aidé ?</h2>
+            <button
+              type="button"
+              class="btn btn--secondary"
+              [disabled]="a.helpedByMe || running() !== null"
+              (click)="helpful(a)"
+            >
+              @if (running() === 'MARK_HELPFUL') {
+                <nx-spinner />
+              } @else {
+                <lucide-icon [img]="icons.ThumbsUp" [size]="16" aria-hidden="true" />
+              }
+              {{ a.helpedByMe ? 'Merci pour votre retour' : 'Oui, il m’a aidé' }}
+            </button>
+            <p class="muted small">
+              {{ a.helpfulCount }} personne{{ a.helpfulCount > 1 ? 's' : '' }} aidée{{
+                a.helpfulCount > 1 ? 's' : ''
+              }}. Sinon, <a routerLink="/tickets/new">créez un ticket</a>.
+            </p>
+          </section>
+        }
+
+        <section class="card panel">
+          <h2 class="card__title">À propos</h2>
+          <dl class="facts">
+            <dt>Catégorie</dt>
+            <dd>{{ a.category.name }}</dd>
+            <dt>Auteur</dt>
+            <dd>
+              <span class="who">
+                <nx-avatar [name]="a.author.fullName" [color]="a.author.avatarColor" [size]="24" />
+                {{ a.author.fullName }}
+              </span>
+            </dd>
+            @if (a.publishedAt) {
+              <dt>Publié le</dt>
+              <dd>{{ exact(a.publishedAt) }}</dd>
+            }
+            <dt>Mis à jour le</dt>
+            <dd>{{ exact(a.updatedAt) }}</dd>
+            @if (a.status === 'PUBLISHED') {
+              <dt>Consultations</dt>
+              <dd>{{ a.viewCount }}</dd>
+            }
+            @if (staff()) {
+              <dt>Tickets liés</dt>
+              <dd>{{ a.linkedTickets }}</dd>
+              @if (a.sourceTicket; as source) {
+                <dt>Rédigé à partir de</dt>
+                <dd>
+                  <a class="mono" [routerLink]="['/tickets', source.id]">{{ source.reference }}</a>
+                </dd>
+              }
+            }
+          </dl>
+        </section>
+      </aside>
+    </div>
+  } @else {
+    <nx-skeleton height="56px" width="50%" />
+    <nx-skeleton height="320px" />
+  }
+</div>

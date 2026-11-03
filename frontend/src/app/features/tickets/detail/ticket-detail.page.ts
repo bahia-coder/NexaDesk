@@ -34,6 +34,7 @@ import { TicketConversationComponent } from './ticket-conversation.component';
 import { TicketFeedbackComponent } from './ticket-feedback.component';
 import { TicketHistoryComponent } from './ticket-history.component';
 import { TicketInterventionsComponent } from '../../interventions/ticket-interventions.component';
+import { TicketKnowledgeComponent } from '../../knowledge/ticket-knowledge.component';
 import { AuthService } from '../../../core/auth/auth.service';
 import { NotificationService } from '../../../core/notifications/notification.service';
 
@@ -60,6 +61,7 @@ const PRIMARY: TicketAction[] = ['TAKE', 'START', 'RESUME', 'RESOLVE', 'CONFIRM_
     TicketFeedbackComponent,
     TicketHistoryComponent,
     TicketInterventionsComponent,
+    TicketKnowledgeComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './ticket-detail.page.html',

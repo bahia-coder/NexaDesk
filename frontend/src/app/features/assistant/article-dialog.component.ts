@@ -1,5 +1,6 @@
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { ChangeDetectionStrategy, Component, inject, linkedSignal, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { LucideAngularModule, ThumbsUp, X } from 'lucide-angular';
 
 import { Article } from '../../core/ai/ai.models';
@@ -9,12 +10,18 @@ import { toApiProblem } from '../../core/http/api-error';
 import { dataOf, loadState } from '../../core/http/load-state';
 import { SkeletonComponent } from '../../shared/ui/skeleton.component';
 import { SpinnerComponent } from '../../shared/ui/spinner.component';
-import { MarkdownTextComponent } from './markdown-text.component';
+import { MarkdownTextComponent } from '../../shared/ui/markdown-text.component';
 
 /** Reads a knowledge-base article offered by the assistant; "Cet article m'a aidé" is counted once per user. */
 @Component({
   selector: 'nx-article-dialog',
-  imports: [LucideAngularModule, MarkdownTextComponent, SkeletonComponent, SpinnerComponent],
+  imports: [
+    RouterLink,
+    LucideAngularModule,
+    MarkdownTextComponent,
+    SkeletonComponent,
+    SpinnerComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <article class="dialog" aria-labelledby="nx-article-title">
@@ -39,6 +46,12 @@ import { MarkdownTextComponent } from './markdown-text.component';
             >{{ a.helpfulCount }} personne{{ a.helpfulCount > 1 ? 's' : '' }} aidée{{
               a.helpfulCount > 1 ? 's' : ''
             }}</span
+          >
+          <a
+            class="btn btn--ghost btn--sm"
+            [routerLink]="['/knowledge', a.id]"
+            (click)="ref.close()"
+            >Ouvrir dans la base de connaissances</a
           >
           <button
             type="button"

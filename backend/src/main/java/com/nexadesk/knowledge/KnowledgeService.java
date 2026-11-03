@@ -27,10 +27,12 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -223,7 +225,11 @@ public class KnowledgeService {
         return load(ids).stream().map(this::toSummary).toList();
     }
 
-    /** Replaces the articles linked to a ticket (published articles only). Ticket's technician or admin. */
+    /**
+     * Replaces the articles linked to a ticket. Ticket's technician or admin. A new link needs a published
+     * article; a link already there is kept whatever its status (the draft written from this ticket), so the
+     * list can be edited without losing it.
+     */
     @Transactional
     public List<ArticleSummaryDto> replaceTicketArticles(Long ticketId, List<Long> articleIds) {
         User actor = access.actor();
@@ -233,9 +239,12 @@ public class KnowledgeService {
                     "Seul le technicien du ticket ou un administrateur peut lier des articles.");
         }
         List<Long> wanted = List.copyOf(new LinkedHashSet<>(articleIds));
+        Set<Long> linked = new HashSet<>(jdbc.sql(
+                        "select article_id from ticket_knowledge_links where ticket_id = :ticket")
+                .param("ticket", ticketId).query(Long.class).list());
         List<KnowledgeArticle> articles = repository.findAllByIdIn(wanted);
-        if (articles.size() != wanted.size()
-                || articles.stream().anyMatch(a -> a.getStatus() != ArticleStatus.PUBLISHED)) {
+        if (articles.size() != wanted.size() || articles.stream()
+                .anyMatch(a -> a.getStatus() != ArticleStatus.PUBLISHED && !linked.contains(a.getId()))) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "Seuls des articles publiés peuvent être liés.");
         }
         jdbc.sql("delete from ticket_knowledge_links where ticket_id = :ticket"

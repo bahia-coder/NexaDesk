@@ -1,0 +1,142 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page-title">Base de connaissances</h1>
+      @if (page(); as p) {
+        <p class="muted">{{ p.totalElements }} article{{ p.totalElements > 1 ? 's' : '' }}</p>
+      }
+    </div>
+    @if (staff()) {
+      <a class="btn btn--primary" routerLink="/knowledge/new">
+        <lucide-icon [img]="icons.Plus" [size]="16" aria-hidden="true" /> Nouvel article
+      </a>
+    }
+  </header>
+
+  <section class="filters card" aria-label="Filtres">
+    <label class="search">
+      <lucide-icon [img]="icons.Search" [size]="16" aria-hidden="true" />
+      <span class="sr-only">Rechercher</span>
+      <input
+        class="input"
+        type="search"
+        placeholder="Décrivez votre problème : « VPN erreur 809 », « imprimante bloquée »…"
+        [value]="filter().search ?? ''"
+        (input)="onSearch($any($event.target).value)"
+      />
+    </label>
+    <select
+      class="select"
+      aria-label="Catégorie"
+      (change)="update({ categoryId: $any($event.target).value || null })"
+    >
+      <option value="">Toutes les catégories</option>
+      @for (c of categories(); track c.id) {
+        <option [value]="c.id" [selected]="filter().categoryId === c.id">{{ c.name }}</option>
+      }
+    </select>
+    @if (staff()) {
+      <select
+        class="select"
+        aria-label="État"
+        (change)="update({ status: $any($event.target).value || null })"
+      >
+        <option value="">Tous les états</option>
+        @for (o of statusOptions(); track o.value) {
+          <option [value]="o.value" [selected]="filter().status === o.value">{{ o.label }}</option>
+        }
+      </select>
+    }
+    <select class="select" aria-label="Tri" (change)="update({ sort: $any($event.target).value })">
+      @for (s of sorts; track s) {
+        @if (s !== 'RELEVANCE' || filter().search) {
+          <option [value]="s" [selected]="sort() === s">{{ sortLabels[s] }}</option>
+        }
+      }
+    </select>
+    @if (filtered()) {
+      <button type="button" class="btn btn--ghost btn--sm" (click)="reset()">
+        <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" /> Réinitialiser
+      </button>
+    }
+  </section>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state
+        title="Base de connaissances indisponible"
+        description="Les articles n’ont pas pu être chargés."
+        [icon]="icons.TriangleAlert"
+      >
+        <button type="button" class="btn btn--primary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else {
+    <section class="card list">
+      @if (page(); as p) {
+        @if (p.content.length === 0) {
+          @if (filtered()) {
+            <nx-empty-state
+              title="Aucun article ne correspond"
+              description="Essayez d’autres mots, ou créez un ticket : le support vous répondra."
+              [icon]="icons.SearchX"
+            >
+              <a class="btn btn--secondary" routerLink="/tickets/new">Créer un ticket</a>
+            </nx-empty-state>
+          } @else {
+            <nx-empty-state
+              title="Aucun article pour l’instant"
+              description="Les procédures rédigées par le support apparaîtront ici."
+              [icon]="icons.BookOpen"
+            />
+          }
+        } @else {
+          <ul class="articles">
+            @for (a of p.content; track a.id) {
+              <li class="article-row">
+                <span class="article-row__title">
+                  <a [routerLink]="['/knowledge', a.id]">{{ a.title }}</a>
+                  @if (a.status !== 'PUBLISHED') {
+                    <span [class]="'badge badge--' + statusTones[a.status]">{{
+                      statusLabels[a.status]
+                    }}</span>
+                  }
+                </span>
+                <span class="muted">{{ a.summary }}</span>
+                <span class="meta">
+                  <span>{{ a.category.name }}</span>
+                  <span>Par {{ a.author.fullName }}</span>
+                  <span [attr.title]="exact(a.updatedAt)"
+                    >Mis à jour le {{ exact(a.updatedAt) }}</span
+                  >
+                  @if (a.status === 'PUBLISHED') {
+                    <span
+                      ><lucide-icon [img]="icons.Eye" [size]="12" aria-hidden="true" />
+                      {{ a.viewCount }} vue{{ a.viewCount > 1 ? 's' : '' }}</span
+                    >
+                    <span
+                      ><lucide-icon [img]="icons.ThumbsUp" [size]="12" aria-hidden="true" />
+                      {{ a.helpfulCount }}</span
+                    >
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+          <nx-paginator
+            [page]="p.page"
+            [size]="p.size"
+            [total]="p.totalElements"
+            itemLabel="article"
+            itemsLabel="articles"
+            (pageChange)="goTo($event)"
+          />
+        }
+      } @else {
+        <nx-skeleton height="56px" [lines]="6" />
+      }
+    </section>
+  }
+</div>

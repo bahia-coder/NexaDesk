@@ -145,6 +145,11 @@ export const routes: Routes = [
         title: 'NexaDesk · Notifications',
       },
       {
+        path: 'knowledge',
+        loadChildren: () =>
+          import('./features/knowledge/knowledge.routes').then((m) => m.KNOWLEDGE_ROUTES),
+      },
+      {
         path: 'assistant',
         loadComponent: () =>
           import('./features/assistant/assistant.page').then((m) => m.AssistantPage),

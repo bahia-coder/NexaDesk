@@ -7,7 +7,8 @@ import { provideRouter } from '@angular/router';
 import { AiStatus, AssistantAnswer } from '../../core/ai/ai.models';
 import { AuthService } from '../../core/auth/auth.service';
 import { AssistantPage } from './assistant.page';
-import { Exchange, historyFor, markdownBlocks } from './conversation';
+import { markdownBlocks } from '../../core/format/markdown';
+import { Exchange, historyFor } from './conversation';
 
 const VPN = {
   article: {

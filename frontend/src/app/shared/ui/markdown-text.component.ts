@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-import { markdownBlocks } from './conversation';
+import { markdownBlocks } from '../../core/format/markdown';
 
 /** Renders article content or an answer (light Markdown) as plain elements, never as raw HTML. */
 @Component({
