@@ -1,0 +1,240 @@
+<div class="page">
+  <header class="page__header">
+    <div>
+      <h1 class="page-title">Journal d’audit</h1>
+      <p class="muted">
+        @if (page(); as p) {
+          {{ p.totalElements }} événement{{ p.totalElements > 1 ? 's' : '' }} ·
+        }
+        connexions, comptes, tickets, configuration, parc et base de connaissances.
+      </p>
+    </div>
+  </header>
+
+  <section class="filters card" aria-label="Filtres">
+    <select
+      class="select"
+      aria-label="Action"
+      (change)="update({ action: $any($event.target).value || null })"
+    >
+      <option value="">Toutes les actions</option>
+      @for (g of groups; track g.label) {
+        <optgroup [label]="g.label">
+          @for (a of g.actions; track a) {
+            <option [value]="a" [selected]="filter().action === a">{{ actionLabels[a] }}</option>
+          }
+        </optgroup>
+      }
+    </select>
+    <select
+      class="select"
+      aria-label="Objet"
+      (change)="update({ entityType: $any($event.target).value || null })"
+    >
+      <option value="">Tous les objets</option>
+      @for (t of entityTypes; track t) {
+        <option [value]="t" [selected]="filter().entityType === t">{{ entityLabels[t] }}</option>
+      }
+    </select>
+    <label class="field-inline">
+      <span class="sr-only">Identifiant de l’objet</span>
+      <input
+        class="input"
+        type="search"
+        placeholder="Référence exacte : INC-2026-0012, EQ-0003…"
+        [value]="filter().entityId ?? ''"
+        (input)="onEntityId($any($event.target).value)"
+      />
+    </label>
+    <label class="field-inline">
+      <span class="muted small">Du</span>
+      <input
+        #fromInput
+        class="input"
+        type="date"
+        [value]="filter().from ?? ''"
+        (change)="setPeriod(fromInput.value, toInput.value)"
+      />
+    </label>
+    <label class="field-inline">
+      <span class="muted small">au</span>
+      <input
+        #toInput
+        class="input"
+        type="date"
+        [value]="filter().to ?? ''"
+        (change)="setPeriod(fromInput.value, toInput.value)"
+      />
+    </label>
+    @if (filter().actorId) {
+      <span class="chip">
+        Par {{ actorName() ?? 'cet utilisateur' }}
+        <button
+          type="button"
+          class="btn btn--ghost btn--icon btn--sm"
+          aria-label="Retirer le filtre sur la personne"
+          (click)="update({ actorId: null })"
+        >
+          <lucide-icon [img]="icons.X" [size]="12" aria-hidden="true" />
+        </button>
+      </span>
+    }
+    @if (filtered()) {
+      <button type="button" class="btn btn--ghost btn--sm" (click)="reset()">
+        <lucide-icon [img]="icons.X" [size]="14" aria-hidden="true" /> Réinitialiser
+      </button>
+    }
+    @if (periodError(); as message) {
+      <p class="field__error period-error" role="alert">{{ message }}</p>
+    }
+  </section>
+
+  @if (state().status === 'error') {
+    <div class="card">
+      <nx-empty-state
+        title="Journal indisponible"
+        description="Les événements n’ont pas pu être chargés."
+        [icon]="icons.TriangleAlert"
+      >
+        <button type="button" class="btn btn--primary" (click)="retry()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" aria-hidden="true" /> Réessayer
+        </button>
+      </nx-empty-state>
+    </div>
+  } @else {
+    <section class="card list">
+      @if (page(); as p) {
+        @if (p.content.length === 0) {
+          <nx-empty-state
+            [title]="filtered() ? 'Aucun événement ne correspond' : 'Journal vide'"
+            [description]="filtered() ? 'Retirez des filtres ou élargissez la période.' : ''"
+            [icon]="filtered() ? icons.SearchX : icons.ScrollText"
+          />
+        } @else {
+          <div class="table-wrap">
+            <table class="table audit">
+              <thead>
+                <tr>
+                  <th scope="col"><span class="sr-only">Détails</span></th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Par</th>
+                  <th scope="col">Action</th>
+                  <th scope="col">Objet</th>
+                  <th scope="col">Résumé</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (e of p.content; track e.id) {
+                  <tr class="audit__row">
+                    <td>
+                      @if (hasDetails(e)) {
+                        <button
+                          type="button"
+                          class="btn btn--ghost btn--icon btn--sm"
+                          [attr.aria-expanded]="open() === e.id"
+                          [attr.aria-controls]="'audit-' + e.id"
+                          [attr.aria-label]="
+                            open() === e.id ? 'Masquer le détail' : 'Voir le détail'
+                          "
+                          (click)="toggle(e)"
+                        >
+                          <lucide-icon
+                            [img]="open() === e.id ? icons.ChevronDown : icons.ChevronRight"
+                            [size]="16"
+                            aria-hidden="true"
+                          />
+                        </button>
+                      }
+                    </td>
+                    <td class="nowrap">{{ exact(e.createdAt) }}</td>
+                    <td>
+                      @if (e.actor; as a) {
+                        <button
+                          type="button"
+                          class="who who--button"
+                          [attr.title]="'Voir les actions de ' + a.fullName"
+                          (click)="update({ actorId: a.id })"
+                        >
+                          <nx-avatar [name]="a.fullName" [color]="a.avatarColor" [size]="24" />
+                          {{ a.fullName }}
+                        </button>
+                      } @else {
+                        <span class="muted">{{ e.actorEmail ?? 'Système' }}</span>
+                      }
+                    </td>
+                    <td>
+                      <span [class]="tone(e)">{{ actionLabel(e) }}</span>
+                    </td>
+                    <td class="nowrap">
+                      <span class="muted small">{{ entityLabel(e) }}</span>
+                      @if (e.entityId) {
+                        @if (link(e); as l) {
+                          <a class="mono" [routerLink]="l.path" [queryParams]="l.query">{{
+                            e.entityId
+                          }}</a>
+                        } @else {
+                          <span class="mono">{{ e.entityId }}</span>
+                        }
+                      }
+                    </td>
+                    <td class="summary">{{ e.summary }}</td>
+                  </tr>
+                  @if (open() === e.id) {
+                    <tr class="audit__details" [id]="'audit-' + e.id">
+                      <td></td>
+                      <td colspan="5">
+                        @if (changes(e); as list) {
+                          @if (list.length) {
+                            <table class="diff">
+                              <caption class="sr-only">
+                                Valeurs avant et après
+                              </caption>
+                              <thead>
+                                <tr>
+                                  <th scope="col">Champ</th>
+                                  <th scope="col">Avant</th>
+                                  <th scope="col">Après</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                @for (c of list; track c.field) {
+                                  <tr>
+                                    <th scope="row" class="mono">{{ c.field }}</th>
+                                    <td class="diff__before">{{ c.before }}</td>
+                                    <td class="diff__after">{{ c.after }}</td>
+                                  </tr>
+                                }
+                              </tbody>
+                            </table>
+                          }
+                        }
+                        <p class="muted small">
+                          @if (e.ipAddress) {
+                            Adresse IP <span class="mono">{{ e.ipAddress }}</span>
+                          }
+                          @if (e.traceId) {
+                            · Trace <span class="mono">{{ e.traceId }}</span>
+                          }
+                        </p>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+          <nx-paginator
+            [page]="p.page"
+            [size]="p.size"
+            [total]="p.totalElements"
+            itemLabel="événement"
+            itemsLabel="événements"
+            (pageChange)="goTo($event)"
+          />
+        }
+      } @else {
+        <nx-skeleton height="40px" [lines]="10" />
+      }
+    </section>
+  }
+</div>

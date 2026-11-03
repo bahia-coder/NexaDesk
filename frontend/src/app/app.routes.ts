@@ -156,6 +156,12 @@ export const routes: Routes = [
         title: 'NexaDesk · Assistant IA',
       },
       {
+        path: 'audit',
+        canMatch: [roleGuard('ADMIN')],
+        loadComponent: () => import('./features/audit/audit.page').then((m) => m.AuditPage),
+        title: 'NexaDesk · Journal d’audit',
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./features/users/profile.page').then((m) => m.ProfilePage),
         title: 'NexaDesk · Mon profil',
