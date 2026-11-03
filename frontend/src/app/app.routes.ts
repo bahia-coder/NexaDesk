@@ -114,6 +114,12 @@ export const routes: Routes = [
         title: 'NexaDesk · Paramètres',
       },
       {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./features/notifications/notifications.page').then((m) => m.NotificationsPage),
+        title: 'NexaDesk · Notifications',
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./features/users/profile.page').then((m) => m.ProfilePage),
         title: 'NexaDesk · Mon profil',

@@ -10,7 +10,8 @@ import {
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ArrowLeft, LucideAngularModule, Pencil, RefreshCw, TriangleAlert } from 'lucide-angular';
-import { catchError, of } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { catchError, filter, of } from 'rxjs';
 
 import { formatDateTime, formatRelative } from '../../../core/format/time';
 import { toApiProblem } from '../../../core/http/api-error';
@@ -34,6 +35,7 @@ import { TicketFeedbackComponent } from './ticket-feedback.component';
 import { TicketHistoryComponent } from './ticket-history.component';
 import { TicketInterventionsComponent } from '../../interventions/ticket-interventions.component';
 import { AuthService } from '../../../core/auth/auth.service';
+import { NotificationService } from '../../../core/notifications/notification.service';
 
 type Tab = 'conversation' | 'interventions' | 'attachments' | 'history';
 
@@ -107,6 +109,19 @@ export class TicketDetailPage {
     computed(() => ({ id: this.ticketId(), version: this.related() })),
     ({ id }) => this.api.history(id).pipe(catchError(() => of([] as HistoryEntry[]))),
   );
+
+  constructor() {
+    // Someone else acted on this ticket (reply, status, assignment): shown without a manual reload.
+    inject(NotificationService)
+      .received$.pipe(
+        filter((notification) => notification.ticketId === this.ticketId()),
+        takeUntilDestroyed(),
+      )
+      .subscribe(() => {
+        this.related.update((n) => n + 1);
+        this.api.get(this.ticketId()).subscribe((updated) => this.ticket.set(updated));
+      });
+  }
 
   protected readonly tab = signal<Tab>('conversation');
   protected readonly running = signal<TicketAction | null>(null);

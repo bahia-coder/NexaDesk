@@ -33,6 +33,7 @@ import { Role } from '../../core/models/user.models';
 import { navigationFor } from '../../core/navigation/navigation';
 import { LayoutService } from '../../core/services/layout.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { NotificationBellComponent } from '../../features/notifications/notification-bell.component';
 import { UserMenuComponent } from './user-menu.component';
 
 /**
@@ -41,7 +42,14 @@ import { UserMenuComponent } from './user-menu.component';
  */
 @Component({
   selector: 'nx-app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule, UserMenuComponent],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    LucideAngularModule,
+    NotificationBellComponent,
+    UserMenuComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.scss',
@@ -60,6 +68,8 @@ export class AppShellComponent {
    */
   readonly role = input<Role | null>(null);
   private readonly effectiveRole = computed(() => this.auth.role() ?? this.role());
+  /** False in the development preview (no session): no notification centre to show. */
+  protected readonly signedIn = this.auth.isAuthenticated;
 
   protected readonly icons = { Hexagon, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X };
 

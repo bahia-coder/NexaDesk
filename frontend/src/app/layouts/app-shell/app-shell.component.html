@@ -114,6 +114,9 @@
             aria-hidden="true"
           />
         </button>
+        @if (signedIn()) {
+          <nx-notification-bell />
+        }
         <nx-user-menu />
       </div>
     </header>
