@@ -1,0 +1,30 @@
+# Production on a server: Caddy in front of the stack, with an automatic Let's Encrypt certificate (HTTPS).
+# Usage, from the project directory:
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml up -d --build
+# Requires DOMAIN in .env (e.g. 203-0-113-10.sslip.io) and ports 80 and 443 open on the server.
+services:
+  frontend:
+    # Only Caddy talks to Nginx: the HTTP port is no longer published on the host.
+    ports: !reset []
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN must be set in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates survive restarts: no new request to Let's Encrypt each time.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+
+volumes:
+  caddy-data:
+  caddy-config:

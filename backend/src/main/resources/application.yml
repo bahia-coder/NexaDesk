@@ -50,6 +50,13 @@ nexadesk:
     # A RESOLVED ticket the requester neither confirms nor rejects is closed after this much business time.
     auto-close-after: 72h
     monitor-interval: 60s
+  # Real installation (without the demo data): first administrator, created on start-up if none exists.
+  # The password is temporary (changed at the first sign-in); leave the e-mail empty to disable.
+  bootstrap:
+    admin-email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+    admin-first-name: ${BOOTSTRAP_ADMIN_FIRST_NAME:Administrateur}
+    admin-last-name: ${BOOTSTRAP_ADMIN_LAST_NAME:NexaDesk}
   security:
     jwt:
       secret: ${JWT_SECRET}

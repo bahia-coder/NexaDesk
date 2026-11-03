@@ -52,6 +52,11 @@ docker compose up -d --build
 
 Application : http://localhost:8088. Nginx sert Angular et relaie `/api` et `/ws` vers l'API, sur la même origine (pas de CORS).
 
+## Mise en ligne
+
+Hébergement gratuit sur une VM Oracle Cloud « Always Free », en HTTPS : voir [docs/deploiement.md](docs/deploiement.md)
+(`deploy/install.sh` installe et démarre tout sur le serveur, et crée le premier administrateur).
+
 ## Tests
 
 ```bash

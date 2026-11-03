@@ -1,0 +1,12 @@
+# HTTPS entry point. Caddy obtains and renews the certificate for {$DOMAIN} on its own (Let's Encrypt),
+# redirects HTTP to HTTPS, and passes WebSocket upgrades (/ws) through unchanged.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	reverse_proxy frontend:80
+}
